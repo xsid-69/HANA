@@ -2,11 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Compass, Calendar, MessageCircle, User } from 'lucide-react'
+import { Compass, Calendar, MessageCircle, User } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const NAV_ITEMS = [
-  { href: '/home', icon: Home, label: 'Home' },
   { href: '/discover', icon: Compass, label: 'Discover' },
   { href: '/bookings', icon: Calendar, label: 'Bookings' },
   { href: '/messages', icon: MessageCircle, label: 'Messages' },
@@ -21,15 +20,11 @@ export default function BottomNav() {
       <div className="bg-white/95 backdrop-blur-lg border-t border-pink-100/50 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
         <div className="flex items-center justify-around h-[72px] max-w-md mx-auto px-2 pt-2 pb-3">
           {NAV_ITEMS.map(item => {
-            const isActive = pathname === item.href
+            const isActive = pathname === item.href || (item.href === '/discover' && pathname.startsWith('/companion'))
             const Icon = item.icon
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex-1 flex justify-center"
-              >
-                <motion.div 
+              <Link key={item.href} href={item.href} className="flex-1 flex justify-center">
+                <motion.div
                   className="relative flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl"
                   whileTap={{ scale: 0.88 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 17 }}
@@ -42,14 +37,12 @@ export default function BottomNav() {
                     />
                   )}
                   <Icon
-                    className={`w-[22px] h-[22px] relative z-10 transition-colors duration-300 ${
-                      isActive ? 'text-white' : 'text-gray-400'
-                    }`}
+                    className={`w-[22px] h-[22px] relative z-10 transition-colors duration-300 ${isActive ? 'text-white' : 'text-gray-400'}`}
                     strokeWidth={isActive ? 2.5 : 1.8}
                   />
-                  <span className={`text-[10px] font-medium tracking-wide relative z-10 transition-colors duration-300 ${
-                    isActive ? 'text-white font-semibold' : 'text-gray-400'
-                  }`}>{item.label}</span>
+                  <span className={`text-[10px] font-medium tracking-wide relative z-10 transition-colors duration-300 ${isActive ? 'text-white font-semibold' : 'text-gray-400'}`}>
+                    {item.label}
+                  </span>
                 </motion.div>
               </Link>
             )

@@ -5,42 +5,60 @@ import { router, publicProcedure, protectedProcedure } from '../trpc'
 export const companionRouter = router({
   getAll: publicProcedure
     .input(z.object({
+      search: z.string().optional(),
       city: z.string().optional(),
+      district: z.string().optional(),
+      tags: z.array(z.string()).optional(),
       minPrice: z.number().optional(),
       maxPrice: z.number().optional(),
-      tags: z.array(z.string()).optional(),
-      activity: z.string().optional(),
+      sortBy: z.enum(['rating', 'price_asc', 'price_desc', 'name']).optional(),
       page: z.number().default(1),
-      limit: z.number().default(20),
+      limit: z.number().default(50),
     }).optional())
     .query(async ({ ctx, input }) => {
-      const filters = input ?? {}
-      const page = filters.page ?? 1
-      const limit = filters.limit ?? 20
+      const f = input ?? {}
+      const page = f.page ?? 1
+      const limit = f.limit ?? 50
 
-      const companions = await ctx.prisma.companion.findMany({
-        where: {
-          isActive: true,
-          ...(filters.city && { city: filters.city }),
-          ...(filters.minPrice || filters.maxPrice ? {
-            hourlyRate: {
-              ...(filters.minPrice && { gte: filters.minPrice }),
-              ...(filters.maxPrice && { lte: filters.maxPrice }),
-            }
-          } : {}),
-          ...(filters.tags?.length && { tags: { hasSome: filters.tags } }),
-        },
+      const where = {
+        isActive: true,
+        ...(f.city && { city: { equals: f.city, mode: 'insensitive' } }),
+        ...(f.district && { district: { contains: f.district, mode: 'insensitive' } }),
+        ...(f.tags?.length && { tags: { hasSome: f.tags } }),
+        ...((f.minPrice || f.maxPrice) ? {
+          hourlyRate: {
+            ...(f.minPrice && { gte: f.minPrice }),
+            ...(f.maxPrice && { lte: f.maxPrice }),
+          }
+        } : {}),
+        ...(f.search ? {
+          OR: [
+            { displayName: { contains: f.search, mode: 'insensitive' } },
+            { bio: { contains: f.search, mode: 'insensitive' } },
+            { city: { contains: f.search, mode: 'insensitive' } },
+            { district: { contains: f.search, mode: 'insensitive' } },
+            { tags: { hasSome: [f.search.toLowerCase()] } },
+          ]
+        } : {}),
+      }
+
+      const orderBy =
+        f.sortBy === 'price_asc' ? { hourlyRate: 'asc' } :
+        f.sortBy === 'price_desc' ? { hourlyRate: 'desc' } :
+        f.sortBy === 'name' ? { displayName: 'asc' } :
+        { averageRating: 'desc' }
+
+      return ctx.prisma.companion.findMany({
+        where,
         include: {
           user: { select: { name: true, image: true } },
           experiences: true,
-          _count: { select: { reviews: true, bookings: true } }
+          _count: { select: { reviews: true, bookings: true } },
         },
-        orderBy: { averageRating: 'desc' },
+        orderBy,
         take: limit,
         skip: (page - 1) * limit,
       })
-
-      return companions
     }),
 
   getById: publicProcedure

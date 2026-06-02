@@ -315,44 +315,78 @@
 }
 
 /* ========== HOVER MICRO-INTERACTIONS ========== */
+
+/* Shared easing tokens */
+:root {
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-quart: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-snappy: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Cards lift with shadow only — no scale, no jank */
 .hover-lift {
-  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), 
-              box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  transition:
+    box-shadow 0.4s var(--ease-out-expo),
+    border-color 0.3s ease;
 }
 .hover-lift:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 20px 40px -12px rgba(233, 30, 99, 0.18), 0 8px 20px -8px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 20px 44px -12px rgba(233, 30, 99, 0.14),
+    0 8px 18px -8px rgba(0, 0, 0, 0.05);
 }
 .hover-lift:active {
-  transform: translateY(-2px) scale(0.98);
-  transition: transform 0.15s ease;
+  box-shadow:
+    0 6px 16px -6px rgba(233, 30, 99, 0.10),
+    0 2px 6px -2px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.1s ease;
 }
 
 .hover-grow {
-  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), 
-              box-shadow 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  transition:
+    box-shadow 0.4s var(--ease-out-expo),
+    border-color 0.3s ease;
 }
 .hover-grow:hover {
-  transform: scale(1.04);
-  box-shadow: 0 8px 24px -6px rgba(233, 30, 99, 0.12);
+  box-shadow: 0 10px 28px -6px rgba(233, 30, 99, 0.13);
 }
 .hover-grow:active {
-  transform: scale(0.98);
-  transition: transform 0.12s ease;
+  box-shadow: 0 4px 10px -4px rgba(233, 30, 99, 0.08);
+  transition: box-shadow 0.1s ease;
 }
 
+/* Glow effect — shadow + subtle border brightening, no movement */
 .hover-glow {
-  transition: box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1), 
-              transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  transition:
+    box-shadow 0.45s var(--ease-out-expo),
+    border-color 0.3s ease;
 }
 .hover-glow:hover {
-  box-shadow: 0 0 40px rgba(233, 30, 99, 0.18), 0 12px 30px -8px rgba(0, 0, 0, 0.08);
-  transform: translateY(-3px);
+  box-shadow:
+    0 0 0 1px rgba(233, 30, 99, 0.08),
+    0 0 40px rgba(233, 30, 99, 0.14),
+    0 16px 36px -10px rgba(0, 0, 0, 0.07);
 }
 .hover-glow:active {
-  transform: translateY(0px) scale(0.98);
-  box-shadow: 0 0 20px rgba(233, 30, 99, 0.12);
-  transition: all 0.12s ease;
+  box-shadow: 0 0 20px rgba(233, 30, 99, 0.08);
+  transition: box-shadow 0.1s ease;
+}
+
+/* Hover card — gentle shadow for info/sidebar cards */
+.hover-card {
+  transition:
+    box-shadow 0.4s var(--ease-out-expo),
+    border-color 0.3s ease;
+}
+.hover-card:hover {
+  box-shadow:
+    0 12px 32px -10px rgba(233, 30, 99, 0.10),
+    0 4px 10px -4px rgba(0, 0, 0, 0.04);
+}
+.hover-card:active {
+  box-shadow: 0 4px 10px -4px rgba(233, 30, 99, 0.07);
+  transition: box-shadow 0.1s ease;
 }
 
 /* ========== GLASSMORPHISM ========== */
@@ -385,6 +419,15 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: gradient-shift 3s ease infinite;
+}
+
+.gradient-text-blush {
+  background: linear-gradient(135deg, #C2185B, #E91E63, #FF6B8A);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shift 4s ease infinite;
 }
 
 .gradient-text-rainbow {
@@ -463,12 +506,12 @@
   mask-composite: exclude;
 }
 
-/* Card image zoom on hover */
+/* Card image zoom on hover — slow and cinematic, no container scale */
 .card-img-zoom .card-img {
-  transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform 0.6s var(--ease-out-expo);
 }
 .card-img-zoom:hover .card-img {
-  transform: scale(1.06);
+  transform: scale(1.05);
 }
 .card-img-zoom:active .card-img {
   transform: scale(1.02);
@@ -491,57 +534,58 @@
 .stagger-children > *:nth-child(9) { animation-delay: 0.36s; }
 .stagger-children > *:nth-child(10) { animation-delay: 0.4s; }
 
-/* ========== BUTTON PRESS (Global - applies to all buttons with this class) ========== */
+/* ========== BUTTON PRESS (Global) ========== */
 .btn-press {
-  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), 
-              box-shadow 0.4s cubic-bezier(0.23, 1, 0.32, 1), 
-              background-color 0.3s ease,
-              border-color 0.3s ease,
-              color 0.3s ease,
-              filter 0.3s ease;
+  transition:
+    transform 0.35s var(--ease-out-expo),
+    box-shadow 0.35s var(--ease-out-expo),
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease,
+    filter 0.25s ease,
+    opacity 0.25s ease;
   position: relative;
   overflow: hidden;
+  will-change: transform;
 }
 .btn-press:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px -5px rgba(233, 30, 99, 0.2), 0 4px 10px -3px rgba(0, 0, 0, 0.04);
-  filter: brightness(1.03);
+  box-shadow: 0 8px 24px -4px rgba(233, 30, 99, 0.18), 0 3px 8px -2px rgba(0, 0, 0, 0.04);
+  filter: brightness(1.04);
 }
 .btn-press:active {
-  transform: scale(0.93) translateY(0px);
-  box-shadow: 0 2px 8px -2px rgba(233, 30, 99, 0.15);
-  filter: brightness(0.97);
-  transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
+  transform: scale(0.94) translateY(0);
+  box-shadow: 0 2px 6px -2px rgba(233, 30, 99, 0.12);
+  filter: brightness(0.96);
+  transition:
+    transform 0.09s var(--ease-in-quart),
+    box-shadow 0.09s var(--ease-in-quart),
+    filter 0.09s ease;
 }
 
-/* Ripple effect for buttons - CSS only click burst */
+/* Ripple effect */
 .btn-press::after,
 .btn-ripple::after {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.45);
   transform: translate(-50%, -50%) scale(0);
   opacity: 0;
+  pointer-events: none;
 }
 .btn-press:active::after,
 .btn-ripple:active::after {
-  animation: btn-click-ripple 0.5s ease-out forwards;
+  animation: btn-click-ripple 0.55s var(--ease-out-expo) forwards;
 }
 
 @keyframes btn-click-ripple {
-  0% {
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 0.6;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(60);
-    opacity: 0;
-  }
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0.7; }
+  100% { transform: translate(-50%, -50%) scale(55); opacity: 0; }
 }
 
 /* Pink glow button */
@@ -558,31 +602,64 @@
   animation: gradient-shift 3s ease infinite;
   border-radius: inherit;
   z-index: -1;
-  filter: blur(8px);
-  opacity: 0.5;
-  transition: opacity 0.4s ease;
+  filter: blur(10px);
+  opacity: 0;
+  transition: opacity 0.4s var(--ease-out-expo);
 }
 .btn-glow:hover::before {
-  opacity: 0.8;
+  opacity: 0.7;
+}
+
+/* ========== CHIP / FILTER PILL TRANSITIONS ========== */
+.chip-transition {
+  transition:
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease,
+    transform 0.3s var(--ease-out-expo),
+    box-shadow 0.3s var(--ease-out-expo);
+}
+
+/* ========== NAV LINK TRANSITIONS ========== */
+.nav-link {
+  transition:
+    color 0.2s ease,
+    background-color 0.25s ease,
+    opacity 0.2s ease;
+}
+
+/* ========== INPUT FOCUS TRANSITIONS ========== */
+input, textarea, select {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+/* ========== IMAGE HOVER TRANSITIONS ========== */
+.img-hover {
+  transition: transform 0.6s var(--ease-out-expo), filter 0.4s ease;
+  will-change: transform;
+}
+.img-hover:hover {
+  transform: scale(1.04);
+  filter: brightness(1.04);
 }
 
 /* ========== GLOBAL INTERACTIVE SMOOTHNESS ========== */
-/* All interactive elements get buttery smooth transitions */
 button, [role="button"], a[href] {
-  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1),
-              box-shadow 0.4s cubic-bezier(0.23, 1, 0.32, 1),
-              background-color 0.3s ease,
-              border-color 0.3s ease,
-              color 0.3s ease,
-              opacity 0.3s ease,
-              filter 0.3s ease;
+  transition:
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease,
+    opacity 0.22s ease,
+    box-shadow 0.3s var(--ease-out-expo),
+    filter 0.22s ease;
 }
 
-/* All buttons site-wide get subtle press on click */
-button:not([disabled]):active,
-[role="button"]:not([disabled]):active {
-  transform: scale(0.96);
-  transition: transform 0.1s ease;
+/* No global scale on active — only explicit btn-press elements get it */
+a[href]:not(.btn-press):not(.hover-lift):not(.hover-grow) {
+  transition: color 0.2s ease, opacity 0.2s ease;
 }
 
 /* Cards and interactive containers */
