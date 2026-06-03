@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { trpc } from '@/lib/trpc-client'
+import { useQuery } from '@tanstack/react-query'
+import { getCompanions } from '@/app/actions/companions'
 import BottomNav from '@/components/layout/BottomNav'
 import TopNav from '@/components/layout/TopNav'
 import {
@@ -138,23 +139,28 @@ function DiscoverInner() {
 
   const isSearching = !!(debouncedSearch || city || district || selectedTags.length)
 
-  const { data: allCompanions, isLoading } = trpc.companion.getAll.useQuery({
-    search: debouncedSearch || undefined,
-    city: city || undefined,
-    district: district || undefined,
-    tags: selectedTags.length ? selectedTags : undefined,
-    sortBy,
+  const { data: allCompanions, isLoading } = useQuery({
+    queryKey: ['companions', debouncedSearch, city, district, selectedTags, sortBy],
+    queryFn: () => getCompanions({
+      search: debouncedSearch || undefined,
+      city: city || undefined,
+      district: district || undefined,
+      tags: selectedTags.length ? selectedTags : undefined,
+      sortBy,
+    }),
   })
 
-  const { data: cityCompanions } = trpc.companion.getAll.useQuery(
-    { city: userCity, sortBy: 'rating' },
-    { enabled: !!userCity && !isSearching }
-  )
+  const { data: cityCompanions } = useQuery({
+    queryKey: ['companions', 'city', userCity],
+    queryFn: () => getCompanions({ city: userCity, sortBy: 'rating' }),
+    enabled: !!userCity && !isSearching,
+  })
 
-  const { data: interestCompanions } = trpc.companion.getAll.useQuery(
-    { tags: user?.tags || [], sortBy: 'rating' },
-    { enabled: !!(user?.tags?.length) && !isSearching }
-  )
+  const { data: interestCompanions } = useQuery({
+    queryKey: ['companions', 'interests', user?.tags],
+    queryFn: () => getCompanions({ tags: user?.tags || [], sortBy: 'rating' }),
+    enabled: !!(user?.tags?.length) && !isSearching,
+  })
 
   const toggleTag = (tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
   const clearAll = () => { setSearch(''); setCity(''); setDistrict(''); setSelectedTags([]); setSortBy('rating') }

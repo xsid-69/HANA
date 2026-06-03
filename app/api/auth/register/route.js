@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/db'
+import { users } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 import { signToken, setTokenCookie } from '@/lib/jwt'
 import { z } from 'zod'
 
@@ -15,7 +17,11 @@ export async function POST(req) {
     const body = await req.json()
     const { name, email, password } = schema.parse(body)
 
-    const existing = await prisma.user.findUnique({ where: { email } })
+    const [existing] = await db.select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1)
+
     if (existing) {
       return NextResponse.json(
         { error: 'An account with this email already exists.' },
@@ -24,9 +30,16 @@ export async function POST(req) {
     }
 
     const hashed = await bcrypt.hash(password, 12)
-    const user = await prisma.user.create({
-      data: { name, email, password: hashed },
-      select: { id: true, email: true, name: true, role: true, onboarded: true },
+    const [user] = await db.insert(users).values({
+      name,
+      email,
+      password: hashed,
+    }).returning({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      onboarded: users.onboarded,
     })
 
     const token = await signToken({ id: user.id, email: user.email, role: user.role })

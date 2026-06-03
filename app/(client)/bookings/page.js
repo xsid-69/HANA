@@ -2,7 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { trpc } from '@/lib/trpc-client'
+import { useQuery } from '@tanstack/react-query'
+import { getCompanionById } from '@/app/actions/companions'
 import BottomNav from '@/components/layout/BottomNav'
 import TopNav from '@/components/layout/TopNav'
 import {
@@ -36,10 +37,11 @@ function BookingsInner() {
   const router = useRouter()
   const companionId = searchParams.get('companionId')
 
-  const { data: companionData } = trpc.companion.getById.useQuery(
-    { id: companionId },
-    { enabled: !!companionId }
-  )
+  const { data: companionData } = useQuery({
+    queryKey: ['companion', companionId],
+    queryFn: () => getCompanionById(companionId),
+    enabled: !!companionId,
+  })
 
   // Fall back to last viewed companion from session storage
   const [sessionCompanion] = useState(() => getLastCompanion())

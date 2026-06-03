@@ -1,6 +1,5 @@
 'use client'
 
-import { trpc } from '@/lib/trpc-client'
 import { useSession } from 'next-auth/react'
 import BottomNav from '@/components/layout/BottomNav'
 import TopNav from '@/components/layout/TopNav'

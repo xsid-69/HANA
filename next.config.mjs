@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ['pg', '@auth/drizzle-adapter'],
   images: {
     remotePatterns: [
       {

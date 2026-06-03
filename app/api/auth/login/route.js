@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { prisma } from '@/lib/prisma'
+import { db } from '@/db'
+import { users } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 import { signToken, setTokenCookie } from '@/lib/jwt'
 import { z } from 'zod'
 
@@ -14,10 +16,17 @@ export async function POST(req) {
     const body = await req.json()
     const { email, password } = schema.parse(body)
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true, email: true, name: true, role: true, onboarded: true, password: true },
+    const [user] = await db.select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      onboarded: users.onboarded,
+      password: users.password,
     })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1)
 
     if (!user || !user.password) {
       return NextResponse.json(

@@ -12,8 +12,10 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
   const router = useRouter()
   const [liked, setLiked] = useState(false)
 
-  // Save to session whenever this profile is viewed — bookings page reads this
-  useState(() => { saveLastCompanion(companion) })
+  const handleBook = () => {
+    saveLastCompanion(companion)
+    router.push(`/bookings?companionId=${companion.id}`)
+  }
 
   return (
     <div className="min-h-screen bg-[#F9F0F4] md:bg-transparent relative">
@@ -298,13 +300,13 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
                   ¥{companion.hourlyRate?.toLocaleString()}<span className="text-sm font-normal text-[var(--hana-muted)]">/hr</span>
                 </p>
               </div>
-              <Link
-                href={`/bookings?companionId=${companion.id}`}
+              <button
+                onClick={handleBook}
                 className="px-7 py-3.5 bg-hana-gradient text-white rounded-full text-sm font-bold shadow-lg shadow-pink-500/30 flex items-center gap-2 btn-ripple"
               >
                 <Heart className="w-4 h-4 fill-white" />
                 Book a Moment
-              </Link>
+              </button>
             </>
           )}
         </div>
@@ -551,13 +553,13 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
                       ¥{companion.hourlyRate?.toLocaleString()}<span className="text-base font-normal text-[var(--hana-muted)]">/hr</span>
                     </p>
                   </div>
-                  <Link
-                    href={`/bookings?companionId=${companion.id}`}
+                  <button
+                    onClick={handleBook}
                     className="px-8 py-3.5 bg-hana-gradient text-white rounded-full text-sm font-bold shadow-lg shadow-pink-500/25 flex items-center gap-2 btn-ripple"
                   >
                     <Heart className="w-4 h-4 fill-white" />
                     Book a Moment
-                  </Link>
+                  </button>
                 </>
               )}
             </motion.div>

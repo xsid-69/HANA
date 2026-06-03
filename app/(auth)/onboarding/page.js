@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { trpc } from '@/lib/trpc-client'
+import { useMutation } from '@tanstack/react-query'
+import { completeOnboarding as completeOnboardingAction } from '@/app/actions/users'
 import { Heart, Sparkles, ArrowRight, ArrowLeft, Check } from 'lucide-react'
 
 const INTERESTS = [
@@ -41,8 +42,15 @@ export default function OnboardingPage() {
     tags: [],
   })
 
-  const completeOnboarding = trpc.user.completeOnboarding.useMutation({
-    onSuccess: () => router.push('/home'),
+  const completeOnboarding = useMutation({
+    mutationFn: completeOnboardingAction,
+    onSuccess: (data) => {
+      if (data.role === 'COMPANION') {
+        router.push('/companion/dashboard')
+      } else {
+        router.push('/discover')
+      }
+    },
   })
 
   const handleComplete = () => {

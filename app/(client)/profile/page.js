@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { trpc } from '@/lib/trpc-client'
+import { useQuery } from '@tanstack/react-query'
+import { getProfile } from '@/app/actions/users'
 import { useAuthStore } from '@/lib/auth-store'
 import BottomNav from '@/components/layout/BottomNav'
 import TopNav from '@/components/layout/TopNav'
@@ -67,7 +68,11 @@ function Avatar({ user, size = 'md' }) {
 export default function ProfilePage() {
   const router = useRouter()
   const { user: jwtUser, logout, fetchMe } = useAuthStore()
-  const { data: profile, isLoading } = trpc.user.getProfile.useQuery(undefined, { retry: false })
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['user', 'profile'],
+    queryFn: () => getProfile(),
+    retry: false,
+  })
 
   useEffect(() => { fetchMe() }, [fetchMe])
 

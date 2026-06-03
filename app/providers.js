@@ -1,12 +1,21 @@
 'use client'
 
 import { useEffect } from 'react'
-import { TRPCProvider } from '@/lib/trpc-client'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider } from 'next-auth/react'
+import { useState } from 'react'
 
 export function Providers({ children }) {
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30 * 1000,
+        refetchOnWindowFocus: false,
+      },
+    },
+  }))
+
   useEffect(() => {
-    // Suppress MetaMask extension injection errors that are not from our app
     const handler = (event) => {
       if (
         event?.reason?.message?.includes('MetaMask') ||
@@ -21,9 +30,9 @@ export function Providers({ children }) {
 
   return (
     <SessionProvider>
-      <TRPCProvider>
+      <QueryClientProvider client={queryClient}>
         {children}
-      </TRPCProvider>
+      </QueryClientProvider>
     </SessionProvider>
   )
 }

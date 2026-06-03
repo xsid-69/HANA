@@ -24,7 +24,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   const handleGoogleSignIn = () => {
-    signIn('google', { callbackUrl: '/home' })
+    signIn('google', { callbackUrl: '/discover' })
   }
 
   const handlePasswordLogin = async (e) => {
@@ -48,7 +48,7 @@ export default function LoginPage() {
       } else if (data.user?.role === 'COMPANION') {
         router.push('/companion/dashboard')
       } else {
-        router.push('/home')
+        router.push('/discover')
       }
     } catch {
       setError('Something went wrong. Please try again.')
