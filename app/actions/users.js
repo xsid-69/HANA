@@ -97,6 +97,12 @@ export async function completeOnboarding(input) {
     city: z.string().min(1).max(100),
     image: z.string().optional(),
     tags: z.array(z.string()).optional(),
+    // Companion-specific fields
+    age: z.number().min(18).max(99).optional(),
+    bio: z.string().min(10).max(1000).optional(),
+    hourlyRate: z.number().min(100).optional(),
+    languages: z.array(z.string()).optional(),
+    displayName: z.string().min(1).max(50).optional(),
   })
 
   const data = schema.parse(input)
@@ -112,6 +118,31 @@ export async function completeOnboarding(input) {
     })
     .where(eq(users.id, userId))
     .returning()
+
+  // If companion, create companion profile
+  if (data.role === 'COMPANION') {
+    const [existing] = await db.select({ id: companions.id })
+      .from(companions)
+      .where(eq(companions.userId, userId))
+      .limit(1)
+
+    if (!existing) {
+      await db.insert(companions).values({
+        userId,
+        displayName: data.displayName || data.name,
+        age: data.age || 25,
+        city: data.city,
+        bio: data.bio || `Hi, I'm ${data.name}. Let's explore ${data.city} together!`,
+        languages: data.languages || ['English', 'Hindi'],
+        photos: data.image ? [data.image] : [],
+        tags: data.tags || [],
+        hourlyRate: data.hourlyRate || 1000,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+    }
+  }
 
   return user
 }

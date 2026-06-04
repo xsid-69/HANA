@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import pg from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { users, companions, experiences, availabilities } from './schema.js'
+import { users, companions, experiences, availabilities, bookings, reviews, savedCompanions, notifications } from './schema.js'
 import { eq } from 'drizzle-orm'
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
@@ -222,12 +222,13 @@ const COMPANIONS = [
 
 async function main() {
   console.log('Clearing old demo data...')
+  await db.delete(reviews)
+  await db.delete(notifications)
+  await db.delete(savedCompanions)
+  await db.delete(bookings)
   await db.delete(experiences)
   await db.delete(availabilities)
   await db.delete(companions)
-  await db.delete(users).where(
-    eq(users.email, users.email) // we'll use a pattern below
-  )
 
   // Delete demo users specifically
   for (const data of COMPANIONS) {
@@ -245,6 +246,8 @@ async function main() {
       role: 'COMPANION',
       city: data.city,
       onboarded: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }).onConflictDoNothing().returning()
 
     if (!user) {
@@ -272,6 +275,8 @@ async function main() {
       averageRating: +(4.2 + Math.random() * 0.75).toFixed(1),
       totalReviews: Math.floor(Math.random() * 30) + 8,
       totalBookings: Math.floor(Math.random() * 50) + 15,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }).onConflictDoNothing().returning()
 
     if (!companion) continue

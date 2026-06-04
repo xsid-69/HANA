@@ -34,6 +34,8 @@ export async function POST(req) {
       name,
       email,
       password: hashed,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }).returning({
       id: users.id,
       email: users.email,

@@ -1,13 +1,17 @@
 import { pgTable, text, integer, boolean, timestamp, uniqueIndex, pgEnum, real, json } from 'drizzle-orm/pg-core'
-import { createId } from './utils'
+import { createId } from './utils.js'
 
 export const roleEnum = pgEnum('Role', ['CLIENT', 'COMPANION', 'ADMIN'])
-export const bookingStatusEnum = pgEnum('BookingStatus', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'DECLINED'])
+export const bookingStatusEnum = pgEnum('BookingStatus', [
+  'PENDING_ACCEPTANCE', 'REJECTED', 'AWAITING_PAYMENT',
+  'CONFIRMED', 'COMPLETED', 'CANCELLED', 'EXPIRED'
+])
+export const paymentStatusEnum = pgEnum('PaymentStatus', ['PENDING', 'PAID', 'FAILED', 'EXPIRED'])
 export const messageTypeEnum = pgEnum('MessageType', ['TEXT', 'IMAGE', 'SYSTEM'])
 export const notificationTypeEnum = pgEnum('NotificationType', [
-  'NEW_MESSAGE', 'BOOKING_REQUEST', 'BOOKING_CONFIRMED',
+  'NEW_MESSAGE', 'BOOKING_REQUEST', 'BOOKING_ACCEPTED', 'BOOKING_CONFIRMED',
   'BOOKING_DECLINED', 'BOOKING_CANCELLED', 'BOOKING_COMPLETED',
-  'REVIEW_REMINDER', 'SYSTEM'
+  'PAYMENT_REMINDER', 'PAYMENT_EXPIRED', 'REVIEW_REMINDER', 'SYSTEM'
 ])
 export const verificationStatusEnum = pgEnum('VerificationStatus', ['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED'])
 
@@ -21,6 +25,10 @@ export const users = pgTable('users', {
   city: text('city'),
   bio: text('bio'),
   onboarded: boolean('onboarded').default(false).notNull(),
+  trustScore: integer('trustScore').default(100).notNull(),
+  cancellationCount: integer('cancellationCount').default(0).notNull(),
+  noShowCount: integer('noShowCount').default(0).notNull(),
+  completedBookings: integer('completedBookings').default(0).notNull(),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
 })
@@ -72,11 +80,20 @@ export const companions = pgTable('companions', {
   minimumHours: integer('minimumHours').default(2).notNull(),
   isActive: boolean('isActive').default(true).notNull(),
   isFeatured: boolean('isFeatured').default(false).notNull(),
+  isSuspended: boolean('isSuspended').default(false).notNull(),
   verificationStatus: verificationStatusEnum('verificationStatus').default('UNVERIFIED').notNull(),
   verificationImages: text('verificationImages').array().default([]).notNull(),
   averageRating: real('averageRating').default(0).notNull(),
   totalReviews: integer('totalReviews').default(0).notNull(),
   totalBookings: integer('totalBookings').default(0).notNull(),
+  trustScore: integer('trustScore').default(100).notNull(),
+  acceptanceRate: real('acceptanceRate').default(100).notNull(),
+  cancellationRate: real('cancellationRate').default(0).notNull(),
+  cancellationCount: integer('cancellationCount').default(0).notNull(),
+  lateCancellations: integer('lateCancellations').default(0).notNull(),
+  completedBookings: integer('completedBookings').default(0).notNull(),
+  totalRequests: integer('totalRequests').default(0).notNull(),
+  responseTimeAvg: integer('responseTimeAvg').default(0).notNull(),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
 })
@@ -122,10 +139,15 @@ export const bookings = pgTable('bookings', {
   serviceFee: integer('serviceFee').notNull(),
   deposit: integer('deposit').notNull(),
   totalAmount: integer('totalAmount').notNull(),
-  status: bookingStatusEnum('status').default('PENDING').notNull(),
+  status: bookingStatusEnum('status').default('PENDING_ACCEPTANCE').notNull(),
+  paymentStatus: paymentStatusEnum('paymentStatus').default('PENDING').notNull(),
+  paymentExpiresAt: timestamp('paymentExpiresAt', { mode: 'date' }),
+  acceptedAt: timestamp('acceptedAt', { mode: 'date' }),
+  rejectedAt: timestamp('rejectedAt', { mode: 'date' }),
   cancelledBy: text('cancelledBy'),
   cancelledAt: timestamp('cancelledAt', { mode: 'date' }),
   cancelReason: text('cancelReason'),
+  isLateCancellation: boolean('isLateCancellation').default(false).notNull(),
   stripePaymentIntentId: text('stripePaymentIntentId'),
   paidAt: timestamp('paidAt', { mode: 'date' }),
   refundedAt: timestamp('refundedAt', { mode: 'date' }),
