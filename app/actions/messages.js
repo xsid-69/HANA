@@ -1,12 +1,13 @@
 'use server'
 
 import { db } from '@/db'
-import { conversations, conversationParticipants, messages, users, notifications } from '@/db/schema'
-import { eq, and, not, desc, lt } from 'drizzle-orm'
+import { conversations, conversationParticipants, messages, users, notifications, companions } from '@/db/schema'
+import { eq, and, not, desc, lt, inArray, count } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { verifyToken } from '@/lib/jwt'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
+import { publish } from '@/lib/message-events'
 
 async function getUser() {
   let userId = null
@@ -28,6 +29,10 @@ async function getUser() {
 
   if (!userId) throw new Error('Unauthorized')
   return userId
+}
+
+export async function getCurrentUserId() {
+  return await getUser()
 }
 
 export async function getConversations() {
@@ -54,7 +59,16 @@ export async function getConversations() {
         .from(users)
         .where(eq(users.id, part.userId))
         .limit(1)
-      return { ...part, user }
+
+      const [companion] = await db.select({ photos: companions.photos, displayName: companions.displayName })
+        .from(companions)
+        .where(eq(companions.userId, part.userId))
+        .limit(1)
+
+      const resolvedImage = user?.image || companion?.photos?.[0] || null
+      const resolvedName = companion?.displayName || user?.name
+
+      return { ...part, user: { ...user, image: resolvedImage, name: resolvedName } }
     }))
 
     const lastMessages = await db.select()
@@ -63,10 +77,19 @@ export async function getConversations() {
       .orderBy(desc(messages.createdAt))
       .limit(1)
 
+    const [unreadResult] = await db.select({ count: count() })
+      .from(messages)
+      .where(and(
+        eq(messages.conversationId, conversation.id),
+        not(eq(messages.senderId, userId)),
+        eq(messages.isRead, false),
+      ))
+
     return {
       ...conversation,
       participants: participantsWithUser,
       messages: lastMessages,
+      unreadCount: unreadResult?.count ?? 0,
     }
   }))
 
@@ -188,6 +211,12 @@ export async function sendMessage(input) {
       body: data.content.slice(0, 100),
       data: { conversationId: data.conversationId },
     })
+
+    publish(p.userId, {
+      type: 'new_message',
+      message: { ...message, sender },
+      conversationId: data.conversationId,
+    })
   }
 
   return { ...message, sender }
@@ -212,4 +241,26 @@ export async function markMessagesRead(conversationId) {
     ))
 
   return { success: true }
+}
+
+export async function getUnreadCount() {
+  const userId = await getUser()
+
+  const participations = await db.select({ conversationId: conversationParticipants.conversationId })
+    .from(conversationParticipants)
+    .where(eq(conversationParticipants.userId, userId))
+
+  if (participations.length === 0) return { count: 0 }
+
+  const convIds = participations.map(p => p.conversationId)
+
+  const [result] = await db.select({ count: count() })
+    .from(messages)
+    .where(and(
+      inArray(messages.conversationId, convIds),
+      not(eq(messages.senderId, userId)),
+      eq(messages.isRead, false),
+    ))
+
+  return { count: result?.count ?? 0 }
 }

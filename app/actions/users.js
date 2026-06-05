@@ -75,7 +75,7 @@ export async function updateProfile(input) {
     name: z.string().min(1).max(100).optional(),
     bio: z.string().max(500).optional(),
     city: z.string().max(100).optional(),
-    image: z.string().url().optional(),
+    image: z.string().optional(),
   })
 
   const data = schema.parse(input)
@@ -84,6 +84,44 @@ export async function updateProfile(input) {
     .set({ ...data, updatedAt: new Date() })
     .where(eq(users.id, userId))
     .returning()
+
+  return updated
+}
+
+export async function updateCompanionProfile(input) {
+  const userId = await getUser()
+
+  const schema = z.object({
+    displayName: z.string().min(1).max(50).optional(),
+    bio: z.string().max(1000).optional(),
+    city: z.string().max(100).optional(),
+    languages: z.array(z.string()).optional(),
+    hourlyRate: z.number().min(100).optional(),
+    photos: z.array(z.string()).optional(),
+  })
+
+  const data = schema.parse(input)
+
+  const [companion] = await db.select({ id: companions.id })
+    .from(companions)
+    .where(eq(companions.userId, userId))
+    .limit(1)
+
+  if (!companion) throw new Error('Not a companion')
+
+  const [updated] = await db.update(companions)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(companions.id, companion.id))
+    .returning()
+
+  if (data.displayName || data.city) {
+    const userUpdate = {}
+    if (data.displayName) userUpdate.name = data.displayName
+    if (data.city) userUpdate.city = data.city
+    await db.update(users)
+      .set({ ...userUpdate, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+  }
 
   return updated
 }

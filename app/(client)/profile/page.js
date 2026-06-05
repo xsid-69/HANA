@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useQuery } from '@tanstack/react-query'
-import { getProfile } from '@/app/actions/users'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getProfile, updateProfile } from '@/app/actions/users'
 import { useAuthStore } from '@/lib/auth-store'
 import BottomNav from '@/components/layout/BottomNav'
 import TopNav from '@/components/layout/TopNav'
@@ -11,8 +11,9 @@ import {
   Heart, Calendar, Star, ChevronRight, LogOut, Bell,
   Shield, CreditCard, UserPlus, Settings, MapPin, Edit3,
   Camera, CheckCircle2, Clock, Bookmark, MessageCircle,
+  X, Loader2, ImagePlus,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 
@@ -52,10 +53,13 @@ function StatCard({ value, label }) {
   )
 }
 
-function Avatar({ user, size = 'md' }) {
+function Avatar({ user, size = 'md', onClick }) {
   const sizes = { sm: 'w-12 h-12 text-lg', md: 'w-24 h-24 text-3xl', lg: 'w-28 h-28 text-4xl' }
   return (
-    <div className={`${sizes[size]} rounded-full overflow-hidden bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center font-bold text-white font-heading shadow-lg`}>
+    <div
+      onClick={onClick}
+      className={`${sizes[size]} rounded-full overflow-hidden bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center font-bold text-white font-heading shadow-lg ${onClick ? 'cursor-pointer' : ''}`}
+    >
       {user?.image ? (
         <img src={user.image} alt={user.name || ''} className="w-full h-full object-cover" />
       ) : (
@@ -65,9 +69,163 @@ function Avatar({ user, size = 'md' }) {
   )
 }
 
+function EditProfileModal({ isOpen, onClose, profile, onSaved }) {
+  const [name, setName] = useState(profile?.name || '')
+  const [bio, setBio] = useState(profile?.bio || '')
+  const [city, setCity] = useState(profile?.city || '')
+  const [image, setImage] = useState(profile?.image || '')
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
+
+  const mutation = useMutation({
+    mutationFn: updateProfile,
+    onSuccess: (data) => {
+      onSaved(data)
+      onClose()
+    },
+  })
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (data.url) setImage(data.url)
+    } catch (err) {
+      console.error('Upload failed:', err)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSave = () => {
+    mutation.mutate({ name: name || undefined, bio: bio || undefined, city: city || undefined, image: image || undefined })
+  }
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-heading text-xl font-bold text-[var(--hana-charcoal)]">Edit Profile</h2>
+              <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+                <X className="w-4 h-4 text-[var(--hana-ash)]" />
+              </button>
+            </div>
+
+            {/* Avatar upload */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center shadow-lg">
+                  {image ? (
+                    <img src={image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl font-bold text-white">{name?.[0]?.toUpperCase() || '?'}</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-[var(--hana-charcoal)] flex items-center justify-center shadow-md border-2 border-white hover:scale-110 transition-transform"
+                >
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4 text-white" />
+                  )}
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+              </div>
+              <p className="text-xs text-[var(--hana-muted)] mt-2">Tap to change photo</p>
+            </div>
+
+            {/* Fields */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-[var(--hana-ash)] uppercase tracking-wider mb-1.5 block">Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm text-[var(--hana-charcoal)] outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all"
+                  placeholder="Your name"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--hana-ash)] uppercase tracking-wider mb-1.5 block">City</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm text-[var(--hana-charcoal)] outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all"
+                  placeholder="Your city"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[var(--hana-ash)] uppercase tracking-wider mb-1.5 block">Bio</label>
+                <textarea
+                  value={bio}
+                  onChange={e => setBio(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm text-[var(--hana-charcoal)] outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all resize-none"
+                  placeholder="Tell others about yourself..."
+                />
+                <p className="text-[10px] text-[var(--hana-muted)] mt-1 text-right">{bio.length}/500</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={onClose}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-medium text-[var(--hana-ash)] hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={mutation.isPending}
+                className="flex-1 py-3 rounded-xl bg-hana-gradient text-white text-sm font-semibold shadow-md shadow-pink-500/20 hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Save Changes
+              </button>
+            </div>
+
+            {mutation.isError && (
+              <p className="text-xs text-red-500 text-center mt-3">{mutation.error?.message}</p>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export default function ProfilePage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { user: jwtUser, logout, fetchMe } = useAuthStore()
+  const [showEdit, setShowEdit] = useState(false)
+
   const { data: profile, isLoading } = useQuery({
     queryKey: ['user', 'profile'],
     queryFn: () => getProfile(),
@@ -92,6 +250,11 @@ export default function ProfilePage() {
     router.push('/login')
   }
 
+  const handleSaved = () => {
+    queryClient.invalidateQueries({ queryKey: ['user', 'profile'] })
+    fetchMe()
+  }
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
@@ -103,7 +266,6 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen relative">
-      {/* Ambient orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-8%] right-[-8%] w-[400px] h-[400px] bg-pink-300/15 rounded-full blur-[90px] animate-pulse-soft" />
         <div className="absolute bottom-[10%] left-[-8%] w-[350px] h-[350px] bg-purple-200/12 rounded-full blur-[80px] animate-float-slow" />
@@ -111,9 +273,15 @@ export default function ProfilePage() {
 
       <TopNav />
 
-      {/* ===== MOBILE ===== */}
+      <EditProfileModal
+        isOpen={showEdit}
+        onClose={() => setShowEdit(false)}
+        profile={profile}
+        onSaved={handleSaved}
+      />
+
+      {/* MOBILE */}
       <div className="md:hidden relative z-10">
-        {/* Hero header */}
         <div className="bg-hana-gradient-animated px-5 pt-14 pb-24 rounded-b-[2.5rem] relative overflow-hidden shadow-xl shadow-pink-500/15">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.12),transparent_60%)] pointer-events-none" />
           <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/8 rounded-full blur-2xl" />
@@ -121,7 +289,10 @@ export default function ProfilePage() {
           <div className="flex flex-col items-center relative z-10">
             <div className="relative">
               <Avatar user={user} size="md" />
-              <button className="absolute bottom-0 right-0 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-100">
+              <button
+                onClick={() => setShowEdit(true)}
+                className="absolute bottom-0 right-0 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-100 hover:scale-110 transition-transform"
+              >
                 <Camera className="w-3.5 h-3.5 text-pink-500" />
               </button>
             </div>
@@ -139,14 +310,9 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Stats card — overlaps header */}
         <div className="px-5 -mt-12">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-2xl p-5 shadow-lg shadow-pink-200/20 border border-[var(--hana-subtle)]/30"
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="bg-white rounded-2xl p-5 shadow-lg shadow-pink-200/20 border border-[var(--hana-subtle)]/30">
             <div className="grid grid-cols-3 divide-x divide-[var(--hana-subtle)]/30">
               <StatCard value={profile?._count?.bookingsAsClient ?? 0} label="Bookings" />
               <StatCard value={profile?._count?.savedCompanions ?? 0} label="Saved" />
@@ -155,33 +321,30 @@ export default function ProfilePage() {
           </motion.div>
         </div>
 
-        {/* Bio */}
         {bio && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="mx-5 mt-4 p-4 bg-white rounded-2xl border border-[var(--hana-subtle)]/30 shadow-sm"
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="mx-5 mt-4 p-4 bg-white rounded-2xl border border-[var(--hana-subtle)]/30 shadow-sm">
             <p className="text-sm text-[var(--hana-ash)] leading-relaxed">{bio}</p>
           </motion.div>
         )}
 
-        {/* Join date */}
         {joinedDate && (
           <div className="flex items-center gap-1.5 px-5 mt-3 text-xs text-[var(--hana-muted)]">
             <Clock className="w-3.5 h-3.5" /> Member since {joinedDate}
           </div>
         )}
 
-        {/* Edit profile button */}
         <div className="px-5 mt-4">
-          <button className="w-full flex items-center justify-center gap-2 py-3 border border-[var(--hana-subtle)]/50 rounded-2xl text-sm font-medium text-[var(--hana-ash)] bg-white hover:bg-[var(--hana-ivory)] transition-colors btn-press shadow-sm">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowEdit(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 border border-[var(--hana-subtle)]/50 rounded-2xl text-sm font-medium text-[var(--hana-ash)] bg-white hover:bg-[var(--hana-ivory)] transition-colors shadow-sm"
+          >
             <Edit3 className="w-4 h-4" /> Edit Profile
-          </button>
+          </motion.button>
         </div>
 
-        {/* Menu sections */}
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="px-5 mt-5 space-y-4 pb-28">
           {MENU_SECTIONS.map(section => (
             <motion.div key={section.title} variants={itemVariants}>
@@ -204,7 +367,6 @@ export default function ProfilePage() {
             </motion.div>
           ))}
 
-          {/* Logout */}
           <motion.button variants={itemVariants} onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3.5 bg-white rounded-2xl border border-red-100 shadow-sm hover:bg-red-50 transition-colors btn-press">
             <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center">
@@ -215,19 +377,18 @@ export default function ProfilePage() {
         </motion.div>
       </div>
 
-      {/* ===== DESKTOP ===== */}
+      {/* DESKTOP */}
       <div className="hidden md:block relative z-10">
-        <motion.div variants={containerVariants} initial="hidden" animate="visible"
-          className="max-w-5xl mx-auto px-6 py-8">
+        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-5xl mx-auto px-6 py-8">
           <div className="grid grid-cols-3 gap-8">
-
-            {/* Left: profile card */}
             <motion.div variants={itemVariants} className="col-span-1 space-y-4">
-              {/* Avatar card */}
               <div className="bg-white rounded-[1.75rem] p-6 border border-[var(--hana-subtle)]/30 shadow-sm text-center sticky top-24">
                 <div className="relative inline-block">
                   <Avatar user={user} size="lg" />
-                  <button className="absolute bottom-1 right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-100 hover:bg-pink-50 transition-colors btn-press">
+                  <button
+                    onClick={() => setShowEdit(true)}
+                    className="absolute bottom-1 right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-100 hover:bg-pink-50 hover:scale-110 transition-all btn-press"
+                  >
                     <Camera className="w-3.5 h-3.5 text-pink-500" />
                   </button>
                 </div>
@@ -252,25 +413,25 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* Stats */}
                 <div className="grid grid-cols-3 divide-x divide-[var(--hana-subtle)]/30 mt-5 pt-5 border-t border-[var(--hana-subtle)]/30">
                   <StatCard value={profile?._count?.bookingsAsClient ?? 0} label="Bookings" />
                   <StatCard value={profile?._count?.savedCompanions ?? 0} label="Saved" />
                   <StatCard value={profile?._count?.reviewsWritten ?? 0} label="Reviews" />
                 </div>
 
-                <button className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 border border-[var(--hana-subtle)]/50 rounded-xl text-sm font-medium text-[var(--hana-ash)] hover:bg-[var(--hana-ivory)] transition-colors btn-press">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setShowEdit(true)}
+                  className="mt-5 w-full flex items-center justify-center gap-2 py-2.5 border border-[var(--hana-subtle)]/50 rounded-xl text-sm font-medium text-[var(--hana-ash)] hover:bg-[var(--hana-ivory)] transition-colors"
+                >
                   <Edit3 className="w-4 h-4" /> Edit Profile
-                </button>
+                </motion.button>
               </div>
             </motion.div>
 
-            {/* Right: details + menu */}
             <div className="col-span-2 space-y-5">
-
-              {/* About card */}
-              <motion.div variants={itemVariants}
-                className="bg-white rounded-[1.75rem] p-6 border border-[var(--hana-subtle)]/30 shadow-sm">
+              <motion.div variants={itemVariants} className="bg-white rounded-[1.75rem] p-6 border border-[var(--hana-subtle)]/30 shadow-sm">
                 <h2 className="text-xs font-bold text-[var(--hana-blush-dark)] uppercase tracking-widest mb-3">About</h2>
                 {bio ? (
                   <p className="text-[var(--hana-ash)] leading-relaxed text-sm">{bio}</p>
@@ -279,9 +440,7 @@ export default function ProfilePage() {
                 )}
               </motion.div>
 
-              {/* Activity summary */}
-              <motion.div variants={itemVariants}
-                className="grid grid-cols-3 gap-4">
+              <motion.div variants={itemVariants} className="grid grid-cols-3 gap-4">
                 {[
                   { label: 'Total Bookings', value: profile?._count?.bookingsAsClient ?? 0, icon: Calendar, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
                   { label: 'Saved Companions', value: profile?._count?.savedCompanions ?? 0, icon: Heart, color: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-100' },
@@ -289,7 +448,7 @@ export default function ProfilePage() {
                 ].map(stat => {
                   const Icon = stat.icon
                   return (
-                    <div key={stat.label} className={`bg-white rounded-2xl p-5 border ${stat.border} shadow-sm flex flex-col gap-3`}>
+                    <motion.div key={stat.label} whileHover={{ y: -3 }} className={`bg-white rounded-2xl p-5 border ${stat.border} shadow-sm flex flex-col gap-3 transition-shadow hover:shadow-md`}>
                       <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
                         <Icon className={`w-5 h-5 ${stat.color}`} />
                       </div>
@@ -297,12 +456,11 @@ export default function ProfilePage() {
                         <div className="text-2xl font-bold text-[var(--hana-charcoal)] font-heading">{stat.value}</div>
                         <div className="text-xs text-[var(--hana-muted)] mt-0.5">{stat.label}</div>
                       </div>
-                    </div>
+                    </motion.div>
                   )
                 })}
               </motion.div>
 
-              {/* Menu sections */}
               {MENU_SECTIONS.map(section => (
                 <motion.div key={section.title} variants={itemVariants}>
                   <p className="text-xs font-semibold text-[var(--hana-muted)] uppercase tracking-widest mb-2 px-1">{section.title}</p>
@@ -324,7 +482,6 @@ export default function ProfilePage() {
                 </motion.div>
               ))}
 
-              {/* Logout */}
               <motion.button variants={itemVariants} onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-5 py-4 bg-white rounded-2xl border border-red-100 shadow-sm hover:bg-red-50 transition-colors btn-press">
                 <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">

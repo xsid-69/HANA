@@ -2,7 +2,7 @@
 
 import { db } from '@/db'
 import { bookings, companions, users, notifications, conversations, conversationParticipants } from '@/db/schema'
-import { eq, and, or, lte, lt, gt, gte, inArray, count, sql } from 'drizzle-orm'
+import { eq, and, or, lte, lt, gt, gte, inArray, count, sql, desc } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { verifyToken } from '@/lib/jwt'
 import { cookies } from 'next/headers'
@@ -516,7 +516,7 @@ export async function getMyBookings(input) {
   const rows = await db.select()
     .from(bookings)
     .where(conditions)
-    .orderBy(bookings.createdAt)
+    .orderBy(desc(bookings.createdAt))
 
   const results = await Promise.all(rows.map(async (booking) => {
     const [companion] = await db.select()
@@ -563,7 +563,7 @@ export async function getCompanionBookings(input) {
   const rows = await db.select()
     .from(bookings)
     .where(conditions)
-    .orderBy(bookings.createdAt)
+    .orderBy(desc(bookings.createdAt))
 
   const results = await Promise.all(rows.map(async (booking) => {
     const [client] = await db.select({ id: users.id, name: users.name, image: users.image, trustScore: users.trustScore })

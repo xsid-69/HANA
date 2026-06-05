@@ -12,6 +12,7 @@ import {
   ArrowRight, Check, Coffee, Music, TreePine, Palette,
   UtensilsCrossed, Star, MapPin, Compass, Clock, Calendar,
   CreditCard, X, Timer, AlertTriangle, CheckCircle2, Loader2,
+  Sparkles, PartyPopper,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -32,6 +33,92 @@ const slideVariants = {
   enter: { opacity: 0, x: 30 },
   center: { opacity: 1, x: 0 },
   exit: { opacity: 0, x: -30 },
+}
+
+const confettiParticles = Array.from({ length: 20 }, (_, i) => ({
+  id: i,
+  x: Math.random() * 100,
+  delay: Math.random() * 0.5,
+  duration: 1.5 + Math.random() * 1,
+  color: ['#E91E63', '#9C27B0', '#FF9800', '#4CAF50', '#2196F3', '#FFD700'][i % 6],
+}))
+
+function SuccessOverlay({ show, title, subtitle, onDone }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={onDone}
+        >
+          {confettiParticles.map(p => (
+            <motion.div
+              key={p.id}
+              initial={{ y: -20, x: `${p.x}vw`, opacity: 1, scale: 1 }}
+              animate={{ y: '100vh', opacity: 0, scale: 0.5, rotate: 360 }}
+              transition={{ duration: p.duration, delay: p.delay, ease: 'easeIn' }}
+              className="absolute top-0 w-2.5 h-2.5 rounded-full"
+              style={{ backgroundColor: p.color, left: `${p.x}%` }}
+            />
+          ))}
+
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0, y: 30 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: 'spring', damping: 15, stiffness: 200, delay: 0.1 }}
+            className="bg-white rounded-3xl p-8 mx-6 max-w-sm w-full text-center shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', damping: 10, stiffness: 200, delay: 0.3 }}
+              className="w-20 h-20 mx-auto mb-5 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30"
+            >
+              <motion.div
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ delay: 0.5, duration: 0.4 }}
+              >
+                <Check className="w-10 h-10 text-white stroke-[3]" />
+              </motion.div>
+            </motion.div>
+
+            <motion.h2
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="font-heading text-xl font-bold text-[var(--hana-charcoal)] mb-2"
+            >
+              {title}
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="text-sm text-[var(--hana-muted)] leading-relaxed"
+            >
+              {subtitle}
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              className="mt-6 flex items-center justify-center gap-1 text-xs text-[var(--hana-muted)]"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+              <span>Tap anywhere to continue</span>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 }
 
 function BookingsInner() {
@@ -63,7 +150,6 @@ function BookingsInner() {
     mutationFn: createBooking,
     onSuccess: () => {
       setBookingSuccess(true)
-      setTimeout(() => setActiveView('myBookings'), 1500)
     },
     onError: (err) => console.error('[booking error]', err.message),
   })
@@ -455,6 +541,16 @@ function BookingsInner() {
         </div>
       </div>
 
+      <SuccessOverlay
+        show={bookingSuccess}
+        title="Request Sent!"
+        subtitle="Your companion will review your request. You'll be notified once they accept."
+        onDone={() => {
+          setBookingSuccess(false)
+          setActiveView('myBookings')
+        }}
+      />
+
       <BottomNav />
     </div>
   )
@@ -504,11 +600,14 @@ const BOOKING_TABS = ['All', 'Active', 'Completed', 'Cancelled']
 
 function BookingCard({ booking }) {
   const queryClient = useQueryClient()
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
   const cfg = BOOKING_STATUS_CONFIG[booking.status] || BOOKING_STATUS_CONFIG.EXPIRED
 
   const pay = useMutation({
     mutationFn: () => confirmPayment(booking.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-bookings'] }),
+    onSuccess: () => {
+      setShowPaymentSuccess(true)
+    },
   })
 
   const cancel = useMutation({
@@ -520,14 +619,24 @@ function BookingCard({ booking }) {
   const needsPayment = booking.status === 'AWAITING_PAYMENT'
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <>
+      <SuccessOverlay
+        show={showPaymentSuccess}
+        title="Booking Confirmed!"
+        subtitle="Payment complete. Your session is locked in. Chat is now enabled with your companion."
+        onDone={() => {
+          setShowPaymentSuccess(false)
+          queryClient.invalidateQueries({ queryKey: ['my-bookings'] })
+        }}
+      />
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="p-4 pb-3">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0">
-              {booking.companion?.photos?.[0] ? (
-                <img src={booking.companion.photos[0]} alt="" className="w-full h-full object-cover" />
+              {booking.companion?.photos?.[0] || booking.companion?.user?.image ? (
+                <img src={booking.companion?.photos?.[0] || booking.companion?.user?.image} alt="" className="w-full h-full object-cover" />
               ) : <span className="text-lg">🌸</span>}
             </div>
             <div>
@@ -594,6 +703,7 @@ function BookingCard({ booking }) {
         </div>
       )}
     </motion.div>
+    </>
   )
 }
 
@@ -672,8 +782,27 @@ function MyBookingsList({ onSwitchToBook, showCapsules, companion }) {
         </div>
 
         {isLoading && (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-pink-500" />
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 animate-pulse">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-pink-100 to-purple-100" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 bg-gray-100 rounded-full w-28" />
+                    <div className="h-2.5 bg-gray-50 rounded-full w-20" />
+                  </div>
+                  <div className="h-6 w-24 bg-gray-100 rounded-full" />
+                </div>
+                <div className="flex gap-4">
+                  <div className="h-3 bg-gray-50 rounded-full w-24" />
+                  <div className="h-3 bg-gray-50 rounded-full w-28" />
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-50 flex justify-between">
+                  <div className="h-3 bg-gray-50 rounded-full w-32" />
+                  <div className="h-4 bg-gray-100 rounded-full w-16" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
