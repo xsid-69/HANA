@@ -34,7 +34,7 @@ export default function CompanionMessagesPage() {
   return (
     <div className="h-[calc(100vh-2rem)] md:h-[calc(100vh-3rem)] flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 md:mb-5">
+      <div className="flex items-center justify-between mb-4 md:mb-5 shrink-0">
         <div>
           <h1 className="font-heading text-xl md:text-2xl font-bold text-[var(--hana-charcoal)]">Messages</h1>
           <div className="flex items-center gap-2 mt-0.5">
@@ -95,8 +95,8 @@ export default function CompanionMessagesPage() {
                       activeChat?.id === conv.id ? 'bg-pink-50/70 border border-pink-100' : 'border border-transparent'
                     }`}
                   >
-                    <div className="relative">
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                    <div className="relative shrink-0">
+                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shadow-sm">
                         {avatar ? (
                           <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
                         ) : (
@@ -108,9 +108,9 @@ export default function CompanionMessagesPage() {
                       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <span className={`text-sm truncate ${unread > 0 ? 'font-bold text-[var(--hana-charcoal)]' : 'font-semibold text-[var(--hana-charcoal)]'}`}>{displayName}</span>
-                        <span className={`text-[10px] shrink-0 ml-2 ${unread > 0 ? 'text-[var(--hana-blush-dark)] font-semibold' : 'text-[var(--hana-muted)]'}`}>{timeStr}</span>
+                        <span className={`text-[10px] shrink-0 ${unread > 0 ? 'text-[var(--hana-blush-dark)] font-semibold' : 'text-[var(--hana-muted)]'}`}>{timeStr}</span>
                       </div>
                       <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-[var(--hana-charcoal)] font-medium' : 'text-[var(--hana-muted)]'}`}>
                         {lastMsg?.senderId === currentUserId ? 'You: ' : ''}{lastMsg?.content || 'No messages yet'}
@@ -132,7 +132,7 @@ export default function CompanionMessagesPage() {
           </div>
 
           {/* Chat area */}
-          <div className={`flex-1 flex flex-col ${activeChat ? 'flex' : 'hidden md:flex'}`}>
+          <div className={`flex-1 flex flex-col min-h-0 ${activeChat ? 'flex' : 'hidden md:flex'}`}>
             {activeChat ? (
               <CompanionChatArea
                 conversation={activeChat}
@@ -207,12 +207,12 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gradient-to-b from-white to-gray-50/30">
+    <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-b from-white to-gray-50/30">
       {/* Header */}
       <motion.div
         initial={{ y: -8, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="flex items-center gap-3 px-4 md:px-6 py-3.5 border-b border-gray-100 bg-white/95 backdrop-blur-md shadow-sm"
+        className="flex items-center gap-3 px-4 md:px-6 py-3.5 border-b border-gray-100 bg-white/95 backdrop-blur-md shadow-sm shrink-0"
       >
         <motion.button
           whileHover={{ scale: 1.1 }}
@@ -222,8 +222,8 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
         >
           <ArrowLeft className="w-5 h-5 text-[var(--hana-ash)]" />
         </motion.button>
-        <div className="relative">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm ring-2 ring-white">
+        <div className="relative shrink-0">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shadow-sm ring-2 ring-white">
             {avatar ? (
               <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
             ) : (
@@ -234,8 +234,8 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
           </div>
           <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
         </div>
-        <div>
-          <h3 className="font-bold text-sm text-[var(--hana-charcoal)]">{displayName}</h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-sm text-[var(--hana-charcoal)] truncate">{displayName}</h3>
           <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
             Online
@@ -244,7 +244,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
       </motion.div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 min-h-0">
         {isLoading && (
           <div className="flex justify-center py-12">
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
@@ -263,7 +263,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
           </motion.div>
         )}
 
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {messageList.map((msg, i) => {
             const isMe = msg.senderId === currentUserId
             const showAvatar = !isMe && (i === 0 || messageList[i - 1]?.senderId !== msg.senderId)
@@ -275,7 +275,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
                 initial={{ opacity: 0, y: 6, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.15 }}
-                className={`flex ${isMe ? 'justify-end' : 'justify-start'} items-end gap-2 ${isLast ? 'mb-3' : 'mb-0.5'}`}
+                className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'} ${isLast ? 'mb-3' : 'mb-0.5'}`}
               >
                 {!isMe && (
                   <div className={`w-7 h-7 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0 ${showAvatar ? 'visible' : 'invisible'}`}>
@@ -286,19 +286,18 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
                     )}
                   </div>
                 )}
-                <div className="max-w-[70%] group">
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                <div className={`max-w-[75%] md:max-w-[65%] group`}>
+                  <div
+                    className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed break-words ${
                       isMe
                         ? `bg-gradient-to-br from-[var(--hana-charcoal)] to-gray-800 text-white shadow-md ${isLast ? 'rounded-br-md' : ''}`
                         : `bg-white text-[var(--hana-charcoal)] border border-gray-100 shadow-sm ${isLast ? 'rounded-bl-md' : ''}`
                     }`}
                   >
                     {msg.content}
-                  </motion.div>
+                  </div>
                   {isLast && (
-                    <div className={`flex items-center gap-1 mt-1 px-1 ${isMe ? 'justify-end' : ''}`}>
+                    <div className={`flex items-center gap-1 mt-1 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <span className="text-[10px] text-[var(--hana-muted)] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         {formatMessageTime(msg.createdAt)}
                       </span>
@@ -322,10 +321,10 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1 }}
-        className="px-4 md:px-6 py-3.5 border-t border-gray-100 bg-white/95 backdrop-blur-md"
+        className="px-4 md:px-6 py-3 border-t border-gray-100 bg-white/95 backdrop-blur-md shrink-0"
       >
         <div className="flex items-center gap-2.5">
-          <div className="flex-1 flex items-center bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100 focus-within:border-pink-200 focus-within:ring-2 focus-within:ring-pink-100/50 focus-within:bg-white transition-all">
+          <div className="flex-1 flex items-center bg-gray-50 rounded-2xl px-4 py-2.5 border border-gray-100 focus-within:border-pink-200 focus-within:ring-2 focus-within:ring-pink-100/50 focus-within:bg-white transition-all">
             <input
               type="text"
               value={input}
@@ -343,7 +342,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
             whileTap={{ scale: 0.92 }}
             onClick={handleSend}
             disabled={!input.trim() || sendMutation.isPending}
-            className="w-10 h-10 rounded-full bg-hana-gradient flex items-center justify-center shadow-lg shadow-pink-500/25 hover:shadow-xl transition-all disabled:opacity-40 disabled:shadow-none"
+            className="w-10 h-10 rounded-full bg-hana-gradient flex items-center justify-center shadow-lg shadow-pink-500/25 hover:shadow-xl transition-all disabled:opacity-40 disabled:shadow-none shrink-0"
           >
             {sendMutation.isPending ? (
               <Loader2 className="w-4 h-4 text-white animate-spin" />

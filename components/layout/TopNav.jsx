@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Search, Bell, Heart } from 'lucide-react'
+import { Search, Heart } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '@/lib/auth-store'
 import { useState } from 'react'
+import NotificationDropdown from '@/components/notifications/NotificationDropdown'
 
 const NAV_LINKS = [
   { href: '/discover', label: 'Discover' },
@@ -79,10 +80,7 @@ export default function TopNav() {
             />
           </form>
 
-          <button className="relative w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:border-pink-300 transition-all btn-press group">
-            <Bell className="w-5 h-5 text-gray-600 group-hover:text-pink-500 transition-colors" />
-            <span className="w-2.5 h-2.5 rounded-full bg-pink-500 absolute right-2 top-2 border-2 border-white" />
-          </button>
+          <NotificationDropdown />
 
           <Link href="/profile" className="w-10 h-10 rounded-full ring-2 ring-pink-200 overflow-hidden hover:ring-pink-400 hover:scale-105 transition-all cursor-pointer shadow-md">
             {user?.image ? (

@@ -53,29 +53,16 @@ function StatCard({ value, label }) {
   )
 }
 
-function Avatar({ user, size = 'md', onClick }) {
-  const sizes = { sm: 'w-12 h-12 text-lg', md: 'w-24 h-24 text-3xl', lg: 'w-28 h-28 text-4xl' }
-  return (
-    <div
-      onClick={onClick}
-      className={`${sizes[size]} rounded-full overflow-hidden bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center font-bold text-white font-heading shadow-lg ${onClick ? 'cursor-pointer' : ''}`}
-    >
-      {user?.image ? (
-        <img src={user.image} alt={user.name || ''} className="w-full h-full object-cover" />
-      ) : (
-        <span>{user?.name?.[0]?.toUpperCase() || '?'}</span>
-      )}
-    </div>
-  )
-}
-
 function EditProfileModal({ isOpen, onClose, profile, onSaved }) {
   const [name, setName] = useState(profile?.name || '')
   const [bio, setBio] = useState(profile?.bio || '')
   const [city, setCity] = useState(profile?.city || '')
   const [image, setImage] = useState(profile?.image || '')
+  const [banner, setBanner] = useState(profile?.banner || '')
   const [uploading, setUploading] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
   const fileInputRef = useRef(null)
+  const bannerInputRef = useRef(null)
 
   const mutation = useMutation({
     mutationFn: updateProfile,
@@ -102,8 +89,25 @@ function EditProfileModal({ isOpen, onClose, profile, onSaved }) {
     }
   }
 
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingBanner(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (data.url) setBanner(data.url)
+    } catch (err) {
+      console.error('Banner upload failed:', err)
+    } finally {
+      setUploadingBanner(false)
+    }
+  }
+
   const handleSave = () => {
-    mutation.mutate({ name: name || undefined, bio: bio || undefined, city: city || undefined, image: image || undefined })
+    mutation.mutate({ name: name || undefined, bio: bio || undefined, city: city || undefined, image: image || undefined, banner: banner || undefined })
   }
 
   return (
@@ -129,6 +133,31 @@ function EditProfileModal({ isOpen, onClose, profile, onSaved }) {
               <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
                 <X className="w-4 h-4 text-[var(--hana-ash)]" />
               </button>
+            </div>
+
+            {/* Banner upload */}
+            <div className="mb-5">
+              <label className="text-xs font-semibold text-[var(--hana-ash)] uppercase tracking-wider mb-2 block">Banner Image</label>
+              <div
+                className="relative w-full h-28 rounded-2xl overflow-hidden cursor-pointer group"
+                onClick={() => bannerInputRef.current?.click()}
+              >
+                {banner ? (
+                  <img src={banner} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-r from-pink-200 via-purple-100 to-pink-200" />
+                )}
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {uploadingBanner ? (
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  ) : (
+                    <div className="flex items-center gap-2 text-white text-sm font-medium">
+                      <ImagePlus className="w-5 h-5" /> Change Banner
+                    </div>
+                  )}
+                </div>
+              </div>
+              <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
             </div>
 
             {/* Avatar upload */}
@@ -225,6 +254,8 @@ export default function ProfilePage() {
   const queryClient = useQueryClient()
   const { user: jwtUser, logout, fetchMe } = useAuthStore()
   const [showEdit, setShowEdit] = useState(false)
+  const bannerInputRef = useRef(null)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['user', 'profile'],
@@ -234,11 +265,20 @@ export default function ProfilePage() {
 
   useEffect(() => { fetchMe() }, [fetchMe])
 
+  const bannerMutation = useMutation({
+    mutationFn: updateProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user', 'profile'] })
+      fetchMe()
+    },
+  })
+
   const user = jwtUser || profile
   const name = user?.name || 'User'
   const email = user?.email || ''
   const city = profile?.city
   const bio = profile?.bio
+  const banner = profile?.banner
   const role = profile?.role || user?.role || 'CLIENT'
   const joinedDate = profile?.createdAt
     ? new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -253,6 +293,25 @@ export default function ProfilePage() {
   const handleSaved = () => {
     queryClient.invalidateQueries({ queryKey: ['user', 'profile'] })
     fetchMe()
+  }
+
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingBanner(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (data.url) {
+        bannerMutation.mutate({ banner: data.url })
+      }
+    } catch (err) {
+      console.error('Banner upload failed:', err)
+    } finally {
+      setUploadingBanner(false)
+    }
   }
 
   const containerVariants = {
@@ -280,40 +339,75 @@ export default function ProfilePage() {
         onSaved={handleSaved}
       />
 
+      <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
+
       {/* MOBILE */}
       <div className="md:hidden relative z-10">
-        <div className="bg-hana-gradient-animated px-5 pt-14 pb-24 rounded-b-[2.5rem] relative overflow-hidden shadow-xl shadow-pink-500/15">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.12),transparent_60%)] pointer-events-none" />
-          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/8 rounded-full blur-2xl" />
-
-          <div className="flex flex-col items-center relative z-10">
-            <div className="relative">
-              <Avatar user={user} size="md" />
-              <button
-                onClick={() => setShowEdit(true)}
-                className="absolute bottom-0 right-0 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-100 hover:scale-110 transition-transform"
-              >
-                <Camera className="w-3.5 h-3.5 text-pink-500" />
-              </button>
-            </div>
-            <h1 className="mt-3 font-heading text-xl font-bold text-white">{name}</h1>
-            <p className="text-white/75 text-sm">{email}</p>
-            {city && (
-              <div className="flex items-center gap-1 mt-1 text-white/65 text-xs">
-                <MapPin className="w-3 h-3" /> {city}
-              </div>
+        {/* Banner */}
+        <div className="relative h-44 w-full overflow-hidden">
+          {banner ? (
+            <img src={banner} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-hana-gradient-animated" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/30" />
+          <button
+            onClick={() => bannerInputRef.current?.click()}
+            disabled={uploadingBanner}
+            className="absolute top-12 right-4 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center border border-white/20 shadow-lg"
+          >
+            {uploadingBanner ? (
+              <Loader2 className="w-4 h-4 text-white animate-spin" />
+            ) : (
+              <Camera className="w-4 h-4 text-white" />
             )}
-            <div className="flex items-center gap-1.5 mt-2 px-3 py-1 bg-white/15 backdrop-blur-sm rounded-full border border-white/15">
-              <CheckCircle2 className="w-3 h-3 text-emerald-300" />
-              <span className="text-white/90 text-xs font-medium capitalize">{role.toLowerCase()} Account</span>
-            </div>
-          </div>
+          </button>
         </div>
 
-        <div className="px-5 -mt-12">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="bg-white rounded-2xl p-5 shadow-lg shadow-pink-200/20 border border-[var(--hana-subtle)]/30">
-            <div className="grid grid-cols-3 divide-x divide-[var(--hana-subtle)]/30">
+        {/* Profile card overlapping banner */}
+        <div className="px-5 -mt-16 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-3xl p-5 pt-14 shadow-lg shadow-pink-200/20 border border-[var(--hana-subtle)]/30 relative"
+          >
+            {/* Avatar positioned at top center, overlapping the card */}
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center font-bold text-white shadow-lg ring-4 ring-white">
+                  {user?.image ? (
+                    <img src={user.image} alt={name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl">{name[0]?.toUpperCase() || '?'}</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowEdit(true)}
+                  className="absolute bottom-0 right-0 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-100 hover:scale-110 transition-transform"
+                >
+                  <Camera className="w-3.5 h-3.5 text-pink-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* Name + info */}
+            <div className="text-center">
+              <h1 className="font-heading text-xl font-bold text-[var(--hana-charcoal)]">{name}</h1>
+              <p className="text-[var(--hana-muted)] text-sm mt-0.5">{email}</p>
+              {city && (
+                <div className="flex items-center justify-center gap-1 mt-1 text-[var(--hana-muted)] text-xs">
+                  <MapPin className="w-3 h-3" /> {city}
+                </div>
+              )}
+              <div className="flex items-center justify-center gap-1.5 mt-2 px-3 py-1 bg-[var(--hana-ivory)] rounded-full border border-[var(--hana-subtle)]/40 w-fit mx-auto">
+                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                <span className="text-[var(--hana-ash)] text-xs font-medium capitalize">{role.toLowerCase()} Account</span>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 divide-x divide-[var(--hana-subtle)]/30 mt-5 pt-4 border-t border-[var(--hana-subtle)]/30">
               <StatCard value={profile?._count?.bookingsAsClient ?? 0} label="Bookings" />
               <StatCard value={profile?._count?.savedCompanions ?? 0} label="Saved" />
               <StatCard value={profile?._count?.reviewsWritten ?? 0} label="Reviews" />
@@ -380,11 +474,39 @@ export default function ProfilePage() {
       {/* DESKTOP */}
       <div className="hidden md:block relative z-10">
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-5xl mx-auto px-6 py-8">
+          {/* Banner */}
+          <motion.div variants={itemVariants} className="relative h-52 rounded-3xl overflow-hidden mb-6 shadow-md group">
+            {banner ? (
+              <img src={banner} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-hana-gradient-animated" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
+            <button
+              onClick={() => bannerInputRef.current?.click()}
+              disabled={uploadingBanner}
+              className="absolute top-4 right-4 px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm flex items-center gap-2 text-white text-sm font-medium border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
+            >
+              {uploadingBanner ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4" />
+              )}
+              Change Banner
+            </button>
+          </motion.div>
+
           <div className="grid grid-cols-3 gap-8">
             <motion.div variants={itemVariants} className="col-span-1 space-y-4">
-              <div className="bg-white rounded-[1.75rem] p-6 border border-[var(--hana-subtle)]/30 shadow-sm text-center sticky top-24">
+              <div className="bg-white rounded-[1.75rem] p-6 border border-[var(--hana-subtle)]/30 shadow-sm text-center sticky top-24 -mt-20 relative z-10">
                 <div className="relative inline-block">
-                  <Avatar user={user} size="lg" />
+                  <div className="w-28 h-28 rounded-full overflow-hidden bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center font-bold text-white font-heading shadow-lg ring-4 ring-white">
+                    {user?.image ? (
+                      <img src={user.image} alt={name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-4xl">{name[0]?.toUpperCase() || '?'}</span>
+                    )}
+                  </div>
                   <button
                     onClick={() => setShowEdit(true)}
                     className="absolute bottom-1 right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-100 hover:bg-pink-50 hover:scale-110 transition-all btn-press"

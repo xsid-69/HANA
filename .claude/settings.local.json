@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\Git\\\\usr\\\\bin;\" + $env:PATH; npx impeccable skills install)"
+    ]
+  }
+}

@@ -134,7 +134,7 @@ export default function MessagesPage() {
       </div>
 
       {/* Mobile */}
-      <div className="md:hidden pb-24">
+      <div className="md:hidden">
         <AnimatePresence mode="wait">
           {activeChat ? (
             <ChatArea
@@ -145,8 +145,8 @@ export default function MessagesPage() {
               showBackButton
             />
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <header className="px-5 pt-14 pb-3 flex items-center justify-between">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-24">
+              <header className="px-5 pt-4 pb-3 flex items-center justify-between">
                 <div>
                   <h1 className="font-heading text-2xl font-bold text-[var(--hana-charcoal)]">Messages</h1>
                   <div className="flex items-center gap-1.5 mt-1">
@@ -233,8 +233,8 @@ function ConversationItem({ conversation, currentUserId, index, onClick, isActiv
         isActive ? 'bg-pink-50/80 border border-pink-100' : 'border border-transparent'
       }`}
     >
-      <div className="relative">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+      <div className="relative shrink-0">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shadow-sm">
           {avatar ? (
             <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
           ) : (
@@ -244,9 +244,9 @@ function ConversationItem({ conversation, currentUserId, index, onClick, isActiv
         <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h3 className={`text-sm truncate ${unread > 0 ? 'font-bold text-[var(--hana-charcoal)]' : 'font-semibold text-[var(--hana-charcoal)]'}`}>{displayName}</h3>
-          <span className={`text-[10px] shrink-0 ml-2 ${unread > 0 ? 'text-[var(--hana-blush-dark)] font-semibold' : 'text-[var(--hana-muted)]'}`}>{timeStr}</span>
+          <span className={`text-[10px] shrink-0 ${unread > 0 ? 'text-[var(--hana-blush-dark)] font-semibold' : 'text-[var(--hana-muted)]'}`}>{timeStr}</span>
         </div>
         <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-[var(--hana-charcoal)] font-medium' : 'text-[var(--hana-muted)]'}`}>
           {lastMsg?.senderId === currentUserId ? 'You: ' : ''}{lastMsg?.content || 'No messages yet'}
@@ -320,13 +320,13 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex-1 flex flex-col h-full bg-gradient-to-b from-white to-gray-50/50"
+      className={`flex flex-col bg-gradient-to-b from-white to-gray-50/50 ${showBackButton ? 'fixed inset-0 z-50' : 'flex-1 h-full'}`}
     >
       {/* Header */}
       <motion.div
         initial={{ y: -10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="px-4 md:px-6 py-3.5 bg-white/95 backdrop-blur-md border-b border-[var(--hana-subtle)]/20 flex items-center gap-3 sticky top-0 z-10 shadow-sm"
+        className="px-4 md:px-6 py-3.5 bg-white/95 backdrop-blur-md border-b border-[var(--hana-subtle)]/20 flex items-center gap-3 shrink-0 shadow-sm"
       >
         {showBackButton && (
           <motion.button
@@ -338,8 +338,8 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
             <ArrowLeft className="w-5 h-5 text-[var(--hana-ash)]" />
           </motion.button>
         )}
-        <div className="relative">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm ring-2 ring-white">
+        <div className="relative shrink-0">
+          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shadow-sm ring-2 ring-white">
             {avatar ? (
               <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
             ) : (
@@ -348,8 +348,8 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
           </div>
           <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
         </div>
-        <div className="flex-1">
-          <h2 className="text-sm font-bold text-[var(--hana-charcoal)]">{displayName}</h2>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-sm font-bold text-[var(--hana-charcoal)] truncate">{displayName}</h2>
           <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
             Online
@@ -358,7 +358,7 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
       </motion.div>
 
       {/* Messages */}
-      <div ref={chatContainerRef} className="flex-1 px-4 md:px-6 py-4 overflow-y-auto">
+      <div ref={chatContainerRef} className="flex-1 px-4 md:px-6 py-4 overflow-y-auto min-h-0">
         {loadingMessages && (
           <div className="flex justify-center py-12">
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
@@ -381,7 +381,7 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
           </motion.div>
         )}
 
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {messageList.map((msg, i) => {
             const isMe = msg.senderId === currentUserId
             const showAvatar = !isMe && (i === 0 || messageList[i - 1]?.senderId !== msg.senderId)
@@ -392,7 +392,7 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
                 initial={{ opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.2 }}
-                className={`flex ${isMe ? 'justify-end' : 'justify-start'} items-end gap-2 ${isLast ? 'mb-3' : 'mb-0.5'}`}
+                className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'} ${isLast ? 'mb-3' : 'mb-0.5'}`}
               >
                 {!isMe && (
                   <div className={`w-7 h-7 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0 ${showAvatar ? 'visible' : 'invisible'}`}>
@@ -403,17 +403,16 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
                     )}
                   </div>
                 )}
-                <div className="max-w-[70%] group">
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className={`px-4 py-2.5 text-sm leading-relaxed ${
+                <div className={`max-w-[75%] md:max-w-[65%] group ${isMe ? 'items-end' : 'items-start'}`}>
+                  <div
+                    className={`px-3.5 py-2.5 text-sm leading-relaxed break-words ${
                       isMe
                         ? `bg-gradient-to-br from-[var(--hana-charcoal)] to-gray-800 text-white shadow-md ${isLast ? 'rounded-2xl rounded-br-md' : 'rounded-2xl'}`
                         : `bg-white text-[var(--hana-charcoal)] border border-gray-100 shadow-sm ${isLast ? 'rounded-2xl rounded-bl-md' : 'rounded-2xl'}`
                     }`}
                   >
                     {msg.content}
-                  </motion.div>
+                  </div>
                   {isLast && (
                     <div className={`flex items-center gap-1 mt-1 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <span className="text-[10px] text-[var(--hana-muted)] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -439,10 +438,10 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.1 }}
-        className="px-4 md:px-6 py-3.5 bg-white/95 backdrop-blur-md border-t border-[var(--hana-subtle)]/20"
+        className="px-4 md:px-6 py-3 bg-white/95 backdrop-blur-md border-t border-[var(--hana-subtle)]/20 shrink-0"
       >
         <div className="flex items-center gap-2.5">
-          <div className="flex-1 flex items-center bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100 focus-within:border-pink-200 focus-within:ring-2 focus-within:ring-pink-100/50 focus-within:bg-white transition-all">
+          <div className="flex-1 flex items-center bg-gray-50 rounded-2xl px-4 py-2.5 border border-gray-100 focus-within:border-pink-200 focus-within:ring-2 focus-within:ring-pink-100/50 focus-within:bg-white transition-all">
             <input
               type="text"
               value={input}
@@ -460,7 +459,7 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
             whileTap={{ scale: 0.92 }}
             onClick={handleSend}
             disabled={!input.trim() || sendMutation.isPending}
-            className="w-11 h-11 rounded-full bg-hana-gradient flex items-center justify-center shadow-lg shadow-pink-500/25 hover:shadow-xl hover:shadow-pink-500/30 transition-all disabled:opacity-40 disabled:shadow-none"
+            className="w-11 h-11 rounded-full bg-hana-gradient flex items-center justify-center shadow-lg shadow-pink-500/25 hover:shadow-xl hover:shadow-pink-500/30 transition-all disabled:opacity-40 disabled:shadow-none shrink-0"
           >
             {sendMutation.isPending ? (
               <Loader2 className="w-4 h-4 text-white animate-spin" />

@@ -2,6 +2,7 @@
 
 import CompanionSidebar from '@/components/layout/CompanionSidebar'
 import CompanionBottomNav from '@/components/layout/CompanionBottomNav'
+import CompanionTopNav from '@/components/layout/CompanionTopNav'
 
 export default function CompanionLayout({ children }) {
   return (
@@ -20,6 +21,7 @@ export default function CompanionLayout({ children }) {
 
       {/* Main Content */}
       <main className="md:ml-[240px] min-h-screen pb-24 md:pb-0 relative z-10">
+        <CompanionTopNav />
         <div className="p-4 md:p-8">
           {children}
         </div>

@@ -20,6 +20,7 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   name: text('name'),
   image: text('image'),
+  banner: text('banner'),
   password: text('password'),
   role: roleEnum('role').default('CLIENT').notNull(),
   city: text('city'),

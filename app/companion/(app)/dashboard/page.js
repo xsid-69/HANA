@@ -232,6 +232,42 @@ export default function CompanionDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-8">
+      {/* New Requests Banner */}
+      <AnimatePresence>
+        {pendingBookings.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -12, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -12, height: 0 }}
+            className="overflow-hidden"
+          >
+            <Link href="/companion/bookings">
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className="relative flex items-center gap-3 px-5 py-4 rounded-2xl bg-gradient-to-r from-pink-500 via-pink-500 to-purple-500 text-white shadow-lg shadow-pink-500/20 cursor-pointer overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_50%,rgba(255,255,255,0.15),transparent)] pointer-events-none" />
+                <motion.div
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                  className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0"
+                >
+                  <Bell size={20} className="text-white" />
+                </motion.div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold">
+                    {pendingBookings.length} new request{pendingBookings.length !== 1 ? 's' : ''} waiting
+                  </p>
+                  <p className="text-xs text-white/80 mt-0.5">Tap to review and respond</p>
+                </div>
+                <ChevronRight size={18} className="text-white/70" />
+              </motion.div>
+            </Link>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -10 }}

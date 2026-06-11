@@ -76,6 +76,7 @@ export async function updateProfile(input) {
     bio: z.string().max(500).optional(),
     city: z.string().max(100).optional(),
     image: z.string().optional(),
+    banner: z.string().optional(),
   })
 
   const data = schema.parse(input)
