@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCompanionBookings, acceptBooking, rejectBooking, companionCancelBooking, completeBooking } from '@/app/actions/bookings'
@@ -8,6 +8,9 @@ import {
   CheckCircle2, XCircle, MessageCircle, Clock, Calendar,
   IndianRupee, User, Shield, AlertTriangle, Timer, Loader2,
 } from 'lucide-react'
+import VerifyMeetingCard from '@/components/booking/VerifyMeetingCard'
+import CompanionActiveBanner from '@/components/booking/CompanionActiveBanner'
+import { useUIStore } from '@/store/useUIStore'
 
 const TABS = ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled']
 
@@ -15,6 +18,7 @@ const STATUS_CONFIG = {
   PENDING_ACCEPTANCE: { label: 'Pending Acceptance', color: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
   AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' },
   CONFIRMED: { label: 'Confirmed', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  IN_PROGRESS: { label: 'In Progress', color: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
   COMPLETED: { label: 'Completed', color: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
   CANCELLED: { label: 'Cancelled', color: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' },
   REJECTED: { label: 'Rejected', color: 'bg-gray-50 text-gray-600 border-gray-200', dot: 'bg-gray-500' },
@@ -43,6 +47,7 @@ export default function CompanionBookingsPage() {
   const [rejectingId, setRejectingId] = useState(null)
   const [cancellingId, setCancellingId] = useState(null)
   const queryClient = useQueryClient()
+  const addToast = useUIStore((s) => s.addToast)
 
   const statusFilter = TAB_FILTER[activeTab]
   const { data: allBookings = [], isLoading } = useQuery({
@@ -52,7 +57,11 @@ export default function CompanionBookingsPage() {
 
   const accept = useMutation({
     mutationFn: acceptBooking,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['companion-bookings'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
+      addToast({ type: 'success', title: 'Booking Accepted', message: 'The client will be notified to complete payment.' })
+    },
+    onError: (err) => addToast({ type: 'error', title: 'Error', message: err.message }),
   })
 
   const reject = useMutation({
@@ -60,7 +69,9 @@ export default function CompanionBookingsPage() {
     onSuccess: () => {
       setRejectingId(null)
       queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
+      addToast({ type: 'info', title: 'Booking Declined', message: 'The client has been notified.' })
     },
+    onError: (err) => addToast({ type: 'error', title: 'Error', message: err.message }),
   })
 
   const cancel = useMutation({
@@ -68,12 +79,18 @@ export default function CompanionBookingsPage() {
     onSuccess: () => {
       setCancellingId(null)
       queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
+      addToast({ type: 'warning', title: 'Booking Cancelled', message: 'This may affect your trust score if cancelled late.' })
     },
+    onError: (err) => addToast({ type: 'error', title: 'Error', message: err.message }),
   })
 
   const complete = useMutation({
     mutationFn: completeBooking,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['companion-bookings'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
+      addToast({ type: 'success', title: 'Session Completed!', message: 'Great work! Your earnings will be processed.' })
+    },
+    onError: (err) => addToast({ type: 'error', title: 'Error', message: err.message }),
   })
 
   const pendingCount = allBookings.filter(b => b.status === 'PENDING_ACCEPTANCE').length
@@ -83,6 +100,8 @@ export default function CompanionBookingsPage() {
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible">
+      <CompanionActiveBanner />
+
       <motion.div variants={itemVariants} className="mb-6">
         <h1 className="font-heading font-bold text-2xl text-[var(--hana-charcoal)]">Bookings</h1>
         <p className="text-[var(--hana-muted)] text-sm mt-1">Manage your booking requests and upcoming sessions</p>
@@ -150,68 +169,61 @@ export default function CompanionBookingsPage() {
               {allBookings.map(booking => {
                 const cfg = STATUS_CONFIG[booking.status] || STATUS_CONFIG.EXPIRED
                 return (
-                  <tr key={booking.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-xs font-semibold text-pink-600">
-                          {booking.client?.name?.[0] || '?'}
-                        </div>
-                        <div>
-                          <span className="font-medium text-sm text-[var(--hana-charcoal)]">{booking.client?.name || 'Unknown'}</span>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Shield className="w-3 h-3 text-emerald-500" />
-                            <span className="text-[10px] text-emerald-600 font-medium">{booking.client?.trustScore ?? 100}%</span>
+                  <Fragment key={booking.id}>
+                    <tr className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-xs font-semibold text-pink-600">
+                            {booking.client?.name?.[0] || '?'}
+                          </div>
+                          <div>
+                            <span className="font-medium text-sm text-[var(--hana-charcoal)]">{booking.client?.name || 'Unknown'}</span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Shield className="w-3 h-3 text-emerald-500" />
+                              <span className="text-[10px] text-emerald-600 font-medium">{booking.client?.trustScore ?? 100}%</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="text-sm text-[var(--hana-charcoal)]">{new Date(booking.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                      <div className="text-xs text-[var(--hana-muted)]">{booking.startTime} - {booking.endTime} · {booking.durationHours}h</div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="text-sm text-[var(--hana-ash)]">{booking.activityType}</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.color}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                        {cfg.label}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <span className="font-semibold text-sm text-[var(--hana-charcoal)]">₹{booking.totalAmount.toLocaleString('en-IN')}</span>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {booking.status === 'PENDING_ACCEPTANCE' && (
-                          <>
-                            <button
-                              onClick={() => accept.mutate(booking.id)}
-                              disabled={accept.isPending}
-                              className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors disabled:opacity-50"
-                              title="Accept"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => reject.mutate({ id: booking.id, reason: 'Not available' })}
-                              disabled={reject.isPending}
-                              className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
-                              title="Reject"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                        {booking.status === 'CONFIRMED' && (
-                          <>
-                            <button
-                              onClick={() => complete.mutate(booking.id)}
-                              disabled={complete.isPending}
-                              className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
-                            >
-                              Complete
-                            </button>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="text-sm text-[var(--hana-charcoal)]">{new Date(booking.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                        <div className="text-xs text-[var(--hana-muted)]">{booking.startTime} - {booking.endTime} · {booking.durationHours}h</div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-sm text-[var(--hana-ash)]">{booking.activityType}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.color}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                          {cfg.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <span className="font-semibold text-sm text-[var(--hana-charcoal)]">₹{booking.totalAmount.toLocaleString('en-IN')}</span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {booking.status === 'PENDING_ACCEPTANCE' && (
+                            <>
+                              <button
+                                onClick={() => accept.mutate(booking.id)}
+                                disabled={accept.isPending}
+                                className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                                title="Accept"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => reject.mutate({ id: booking.id, reason: 'Not available' })}
+                                disabled={reject.isPending}
+                                className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
+                                title="Reject"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                          {booking.status === 'CONFIRMED' && (
                             <button
                               onClick={() => cancel.mutate({ id: booking.id, reason: 'Cancelled by companion' })}
                               disabled={cancel.isPending}
@@ -220,11 +232,27 @@ export default function CompanionBookingsPage() {
                             >
                               <XCircle className="w-4 h-4" />
                             </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                          )}
+                          {booking.status === 'IN_PROGRESS' && (
+                            <button
+                              onClick={() => complete.mutate(booking.id)}
+                              disabled={complete.isPending}
+                              className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+                            >
+                              Complete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {booking.status === 'CONFIRMED' && !booking.codeVerified && (
+                      <tr className="bg-blue-50/30">
+                        <td colSpan={6} className="px-5 py-3">
+                          <VerifyMeetingCard bookingId={booking.id} codeVerified={booking.codeVerified} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 )
               })}
             </tbody>
@@ -300,6 +328,21 @@ export default function CompanionBookingsPage() {
                 )}
 
                 {booking.status === 'CONFIRMED' && (
+                  <div className="mt-3 pt-3 border-t border-gray-50">
+                    <VerifyMeetingCard bookingId={booking.id} codeVerified={booking.codeVerified} />
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        onClick={() => cancel.mutate({ id: booking.id, reason: 'Cancelled by companion' })}
+                        disabled={cancel.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {booking.status === 'IN_PROGRESS' && (
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50">
                     <button
                       onClick={() => complete.mutate(booking.id)}
@@ -307,13 +350,6 @@ export default function CompanionBookingsPage() {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" /> Mark Complete
-                    </button>
-                    <button
-                      onClick={() => cancel.mutate({ id: booking.id, reason: 'Cancelled by companion' })}
-                      disabled={cancel.isPending}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
-                    >
-                      <XCircle className="w-3.5 h-3.5" /> Cancel
                     </button>
                   </div>
                 )}

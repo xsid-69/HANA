@@ -265,6 +265,12 @@ export default function ProfilePage() {
 
   useEffect(() => { fetchMe() }, [fetchMe])
 
+  useEffect(() => {
+    if (!isLoading && !jwtUser && !profile) {
+      router.replace('/login')
+    }
+  }, [isLoading, jwtUser, profile, router])
+
   const bannerMutation = useMutation({
     mutationFn: updateProfile,
     onSuccess: () => {
@@ -321,6 +327,14 @@ export default function ProfilePage() {
   const itemVariants = {
     hidden: { opacity: 0, y: 14 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+  }
+
+  if (isLoading || (!jwtUser && !profile)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-pink-500 animate-spin" />
+      </div>
+    )
   }
 
   return (

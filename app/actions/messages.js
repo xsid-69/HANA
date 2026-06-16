@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/db'
-import { conversations, conversationParticipants, messages, users, notifications, companions } from '@/db/schema'
+import { conversations, conversationParticipants, messages, users, notifications, companions, bookings } from '@/db/schema'
 import { eq, and, not, desc, lt, inArray, count } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { verifyToken } from '@/lib/jwt'
@@ -50,6 +50,15 @@ export async function getConversations() {
 
     if (!conversation) return null
 
+    let bookingStatus = null
+    if (conversation.bookingId) {
+      const [booking] = await db.select({ status: bookings.status })
+        .from(bookings)
+        .where(eq(bookings.id, conversation.bookingId))
+        .limit(1)
+      bookingStatus = booking?.status || null
+    }
+
     const participants = await db.select()
       .from(conversationParticipants)
       .where(eq(conversationParticipants.conversationId, conversation.id))
@@ -87,6 +96,7 @@ export async function getConversations() {
 
     return {
       ...conversation,
+      bookingStatus,
       participants: participantsWithUser,
       messages: lastMessages,
       unreadCount: unreadResult?.count ?? 0,

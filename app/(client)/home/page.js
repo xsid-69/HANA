@@ -13,6 +13,7 @@ import {
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useEffect } from 'react'
+import ActiveBookingBanner from '@/components/booking/ActiveBookingBanner'
 
 const FEATURES = [
   {
@@ -126,6 +127,11 @@ export default function HomePage() {
       </div>
 
       <TopNav />
+
+      {/* Active Booking Status Banner */}
+      <div className="relative z-20 max-w-[1440px] mx-auto px-4 md:px-12 pt-4">
+        <ActiveBookingBanner />
+      </div>
 
       {/* ===== DESKTOP ===== */}
       <div className="hidden md:block relative z-10">

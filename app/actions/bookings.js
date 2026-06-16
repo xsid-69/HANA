@@ -6,6 +6,7 @@ import { eq, and, or, lte, lt, gt, gte, inArray, count, sql, desc } from 'drizzl
 import { auth } from '@/lib/auth'
 import { verifyToken } from '@/lib/jwt'
 import { cookies } from 'next/headers'
+import { randomInt } from 'crypto'
 import { z } from 'zod'
 
 async function getUser() {
@@ -66,7 +67,7 @@ export async function createBooking(input) {
     .where(and(
       eq(bookings.companionId, data.companionId),
       eq(bookings.date, date),
-      inArray(bookings.status, ['PENDING_ACCEPTANCE', 'AWAITING_PAYMENT', 'CONFIRMED']),
+      inArray(bookings.status, ['PENDING_ACCEPTANCE', 'AWAITING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS']),
       or(
         and(lte(bookings.startTime, data.startTime), gt(bookings.endTime, data.startTime)),
         and(lt(bookings.startTime, data.endTime), gte(bookings.endTime, data.endTime)),
@@ -223,11 +224,15 @@ export async function confirmPayment(bookingId) {
     throw new Error('Payment window has expired')
   }
 
+  const meetingCode = String(randomInt(100000, 999999))
+
   const [updated] = await db.update(bookings)
     .set({
       status: 'CONFIRMED',
       paymentStatus: 'PAID',
       paidAt: new Date(),
+      meetingCode,
+      codeGeneratedAt: new Date(),
       updatedAt: new Date(),
     })
     .where(eq(bookings.id, bookingId))
@@ -320,7 +325,7 @@ export async function companionCancelBooking(bookingId, reason) {
     .limit(1)
 
   if (companion?.userId !== userId) throw new Error('Forbidden')
-  if (!['AWAITING_PAYMENT', 'CONFIRMED'].includes(booking.status)) {
+  if (!['AWAITING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS'].includes(booking.status)) {
     throw new Error('Cannot cancel this booking')
   }
 
@@ -396,7 +401,7 @@ export async function userCancelBooking(bookingId, reason) {
 
   if (!booking) throw new Error('Booking not found')
   if (booking.clientId !== userId) throw new Error('Forbidden')
-  if (!['PENDING_ACCEPTANCE', 'AWAITING_PAYMENT', 'CONFIRMED'].includes(booking.status)) {
+  if (!['PENDING_ACCEPTANCE', 'AWAITING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS'].includes(booking.status)) {
     throw new Error('Cannot cancel this booking')
   }
 
@@ -462,7 +467,8 @@ export async function completeBooking(bookingId) {
     .limit(1)
 
   if (companion?.userId !== userId) throw new Error('Forbidden')
-  if (booking.status !== 'CONFIRMED') throw new Error('Booking is not confirmed')
+  if (booking.status !== 'IN_PROGRESS') throw new Error('Booking must be in progress to complete')
+  if (!booking.codeVerified) throw new Error('Meeting must be verified before completing')
 
   const [updated] = await db.update(bookings)
     .set({ status: 'COMPLETED', updatedAt: new Date() })
@@ -503,7 +509,7 @@ export async function getMyBookings(input) {
   const userId = await getUser()
 
   const schema = z.object({
-    status: z.enum(['PENDING_ACCEPTANCE', 'REJECTED', 'AWAITING_PAYMENT', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'EXPIRED']).optional(),
+    status: z.enum(['PENDING_ACCEPTANCE', 'REJECTED', 'AWAITING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED']).optional(),
   }).optional()
 
   const data = schema.parse(input)
@@ -550,7 +556,7 @@ export async function getCompanionBookings(input) {
   if (!companion) throw new Error('Not a companion')
 
   const schema = z.object({
-    status: z.enum(['PENDING_ACCEPTANCE', 'REJECTED', 'AWAITING_PAYMENT', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'EXPIRED']).optional(),
+    status: z.enum(['PENDING_ACCEPTANCE', 'REJECTED', 'AWAITING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED']).optional(),
   }).optional()
 
   const data = schema.parse(input)
@@ -594,7 +600,7 @@ export async function getCompanionDashboardStats() {
 
   const [confirmedCount] = await db.select({ count: count() })
     .from(bookings)
-    .where(and(eq(bookings.companionId, companion.id), eq(bookings.status, 'CONFIRMED')))
+    .where(and(eq(bookings.companionId, companion.id), inArray(bookings.status, ['CONFIRMED', 'IN_PROGRESS'])))
 
   const [monthEarnings] = await db.select({ total: sql`COALESCE(SUM("totalAmount"), 0)` })
     .from(bookings)
@@ -646,6 +652,91 @@ export async function getUserTrustStats() {
   }
 }
 
+// Get meeting code for user (only the booking client can see it)
+export async function getMeetingCode(bookingId) {
+  const userId = await getUser()
+
+  const [booking] = await db.select({
+    id: bookings.id,
+    clientId: bookings.clientId,
+    status: bookings.status,
+    meetingCode: bookings.meetingCode,
+    codeGeneratedAt: bookings.codeGeneratedAt,
+    codeVerified: bookings.codeVerified,
+    verifiedAt: bookings.verifiedAt,
+  })
+    .from(bookings)
+    .where(eq(bookings.id, bookingId))
+    .limit(1)
+
+  if (!booking) throw new Error('Booking not found')
+  if (booking.clientId !== userId) throw new Error('Forbidden')
+
+  return {
+    meetingCode: booking.meetingCode,
+    codeGeneratedAt: booking.codeGeneratedAt,
+    codeVerified: booking.codeVerified,
+    verifiedAt: booking.verifiedAt,
+  }
+}
+
+// Companion verifies the meeting code
+export async function verifyMeetingCode(bookingId, code) {
+  const userId = await getUser()
+
+  const [booking] = await db.select()
+    .from(bookings)
+    .where(eq(bookings.id, bookingId))
+    .limit(1)
+
+  if (!booking) throw new Error('Booking not found')
+
+  const [companion] = await db.select({ userId: companions.userId })
+    .from(companions)
+    .where(eq(companions.id, booking.companionId))
+    .limit(1)
+
+  if (companion?.userId !== userId) throw new Error('Forbidden')
+  if (booking.status !== 'CONFIRMED') throw new Error('Booking is not in a verifiable state')
+  if (booking.codeVerified) throw new Error('Code has already been verified')
+  if (booking.verificationAttempts >= 5) throw new Error('Maximum verification attempts exceeded. Please contact support.')
+
+  if (booking.meetingCode !== code) {
+    await db.update(bookings)
+      .set({
+        verificationAttempts: sql`"verificationAttempts" + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, bookingId))
+
+    const attempts = booking.verificationAttempts + 1
+    if (attempts >= 5) {
+      throw new Error('Maximum verification attempts reached. Verification is temporarily disabled.')
+    }
+    throw new Error('Invalid meeting code. Please try again.')
+  }
+
+  const [updated] = await db.update(bookings)
+    .set({
+      codeVerified: true,
+      verifiedAt: new Date(),
+      status: 'IN_PROGRESS',
+      updatedAt: new Date(),
+    })
+    .where(eq(bookings.id, bookingId))
+    .returning()
+
+  await db.insert(notifications).values({
+    userId: booking.clientId,
+    type: 'BOOKING_CONFIRMED',
+    title: 'Meetup Verified!',
+    body: 'Your companion has verified the meeting code. Your booking is now in progress.',
+    data: { bookingId: booking.id },
+  })
+
+  return updated
+}
+
 // Internal helper
 async function recalculateCompanionStats(companionId) {
   const [totalReqs] = await db.select({ count: count() })
@@ -656,7 +747,7 @@ async function recalculateCompanionStats(companionId) {
     .from(bookings)
     .where(and(
       eq(bookings.companionId, companionId),
-      inArray(bookings.status, ['AWAITING_PAYMENT', 'CONFIRMED', 'COMPLETED']),
+      inArray(bookings.status, ['AWAITING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED']),
     ))
 
   const [cancelled] = await db.select({ count: count() })

@@ -12,6 +12,9 @@ import {
   Zap, ArrowUpRight,
 } from 'lucide-react'
 import Link from 'next/link'
+import VerifyMeetingCard from '@/components/booking/VerifyMeetingCard'
+import CompanionActiveBanner from '@/components/booking/CompanionActiveBanner'
+import { useUIStore } from '@/store/useUIStore'
 
 function getGreeting() {
   const hour = new Date().getHours()
@@ -181,6 +184,7 @@ function PendingRequestCard({ request, onAccept, onReject, acceptPending, reject
 export default function CompanionDashboard() {
   const [isOnline, setIsOnline] = useState(true)
   const queryClient = useQueryClient()
+  const addToast = useUIStore((s) => s.addToast)
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['companion-dashboard-stats'],
@@ -203,7 +207,9 @@ export default function CompanionDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
       queryClient.invalidateQueries({ queryKey: ['companion-dashboard-stats'] })
+      addToast({ type: 'success', title: 'Booking Accepted', message: 'Client will be notified to complete payment.' })
     },
+    onError: (err) => addToast({ type: 'error', title: 'Error', message: err.message }),
   })
 
   const reject = useMutation({
@@ -211,7 +217,9 @@ export default function CompanionDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
       queryClient.invalidateQueries({ queryKey: ['companion-dashboard-stats'] })
+      addToast({ type: 'info', title: 'Booking Declined', message: 'The client has been notified.' })
     },
+    onError: (err) => addToast({ type: 'error', title: 'Error', message: err.message }),
   })
 
   if (isLoading) {
@@ -232,6 +240,9 @@ export default function CompanionDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-8">
+      {/* Active Session / Upcoming Banner */}
+      <CompanionActiveBanner />
+
       {/* New Requests Banner */}
       <AnimatePresence>
         {pendingBookings.length > 0 && (
@@ -547,6 +558,9 @@ export default function CompanionDashboard() {
                       ₹{booking.totalAmount?.toLocaleString('en-IN')}
                     </span>
                   </div>
+                  {!booking.codeVerified && (
+                    <VerifyMeetingCard bookingId={booking.id} codeVerified={booking.codeVerified} />
+                  )}
                 </div>
               </motion.div>
             ))}

@@ -17,6 +17,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { getLastCompanion } from '@/lib/session-companion'
+import MeetingCodeCard from '@/components/booking/MeetingCodeCard'
+import ActiveBookingBanner from '@/components/booking/ActiveBookingBanner'
+import { useUIStore } from '@/store/useUIStore'
 
 const EXPERIENCES = [
   { id: 'coffee', name: 'Coffee Date', desc: 'Cozy chats over artisan coffee', emoji: '☕', icon: Coffee, price: 800 },
@@ -145,13 +148,17 @@ function BookingsInner() {
   const [calMonth, setCalMonth] = useState(new Date().getMonth())
   const [calYear, setCalYear] = useState(new Date().getFullYear())
   const [bookingSuccess, setBookingSuccess] = useState(false)
+  const addToast = useUIStore((s) => s.addToast)
 
   const bookMutation = useMutation({
     mutationFn: createBooking,
     onSuccess: () => {
       setBookingSuccess(true)
+      addToast({ type: 'success', title: 'Booking Sent!', message: 'Your request has been sent to the companion.' })
     },
-    onError: (err) => console.error('[booking error]', err.message),
+    onError: (err) => {
+      addToast({ type: 'error', title: 'Booking Failed', message: err.message })
+    },
   })
 
   const handleConfirm = () => {
@@ -590,6 +597,7 @@ const BOOKING_STATUS_CONFIG = {
   PENDING_ACCEPTANCE: { label: 'Pending Acceptance', color: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
   AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' },
   CONFIRMED: { label: 'Confirmed', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  IN_PROGRESS: { label: 'In Progress', color: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
   COMPLETED: { label: 'Completed', color: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
   CANCELLED: { label: 'Cancelled', color: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' },
   REJECTED: { label: 'Rejected', color: 'bg-gray-50 text-gray-600 border-gray-200', dot: 'bg-gray-500' },
@@ -615,7 +623,7 @@ function BookingCard({ booking }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['my-bookings'] }),
   })
 
-  const canCancel = ['PENDING_ACCEPTANCE', 'AWAITING_PAYMENT', 'CONFIRMED'].includes(booking.status)
+  const canCancel = ['PENDING_ACCEPTANCE', 'AWAITING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS'].includes(booking.status)
   const needsPayment = booking.status === 'AWAITING_PAYMENT'
 
   return (
@@ -697,9 +705,13 @@ function BookingCard({ booking }) {
       )}
 
       {booking.status === 'CONFIRMED' && (
+        <MeetingCodeCard bookingId={booking.id} />
+      )}
+
+      {booking.status === 'IN_PROGRESS' && (
         <div className="px-4 py-3 border-t border-emerald-100 bg-emerald-50/30 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          <span className="text-xs text-emerald-700 font-medium">Confirmed! Chat enabled.</span>
+          <span className="text-xs text-emerald-700 font-medium">Booking in progress. Enjoy your experience!</span>
         </div>
       )}
     </motion.div>
@@ -717,7 +729,7 @@ function MyBookingsList({ onSwitchToBook, showCapsules, companion }) {
   })
 
   const filtered = activeTab === 'All' ? bookings :
-    activeTab === 'Active' ? bookings.filter(b => ['PENDING_ACCEPTANCE', 'AWAITING_PAYMENT', 'CONFIRMED'].includes(b.status)) :
+    activeTab === 'Active' ? bookings.filter(b => ['PENDING_ACCEPTANCE', 'AWAITING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS'].includes(b.status)) :
     activeTab === 'Completed' ? bookings.filter(b => b.status === 'COMPLETED') :
     bookings.filter(b => ['CANCELLED', 'REJECTED', 'EXPIRED'].includes(b.status))
 
@@ -727,7 +739,8 @@ function MyBookingsList({ onSwitchToBook, showCapsules, companion }) {
     <div className="min-h-screen relative">
       <TopNav />
       <div className="max-w-2xl mx-auto px-5 pt-14 md:pt-8 pb-28 relative z-10">
-        <header className="mb-5">
+        <ActiveBookingBanner />
+        <header className="mb-5 mt-4">
           <h1 className="font-heading text-2xl font-bold text-[var(--hana-charcoal)]">My Bookings</h1>
           <p className="text-sm text-[var(--hana-muted)] mt-0.5">Track your requests and upcoming sessions</p>
         </header>

@@ -165,6 +165,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
   const other = conversation.participants?.find(p => p.userId !== currentUserId)
   const displayName = other?.user?.name || 'Client'
   const avatar = other?.user?.image
+  const isChatDisabled = conversation.bookingStatus === 'COMPLETED'
 
   const { data, isLoading } = useQuery({
     queryKey: ['messages', conversation.id],
@@ -323,6 +324,11 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
         transition={{ delay: 0.1 }}
         className="px-4 md:px-6 py-3 border-t border-gray-100 bg-white/95 backdrop-blur-md shrink-0"
       >
+        {isChatDisabled ? (
+          <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-50 rounded-2xl border border-gray-100">
+            <span className="text-sm text-gray-500">This chat has ended as the date is completed</span>
+          </div>
+        ) : (
         <div className="flex items-center gap-2.5">
           <div className="flex-1 flex items-center bg-gray-50 rounded-2xl px-4 py-2.5 border border-gray-100 focus-within:border-pink-200 focus-within:ring-2 focus-within:ring-pink-100/50 focus-within:bg-white transition-all">
             <input
@@ -351,6 +357,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
             )}
           </motion.button>
         </div>
+        )}
       </motion.div>
     </div>
   )

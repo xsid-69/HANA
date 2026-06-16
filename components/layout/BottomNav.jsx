@@ -2,34 +2,45 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Compass, Calendar, MessageCircle, User } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { Compass, Calendar, MessageCircle, User, LogIn } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { getUnreadCount } from '@/app/actions/messages'
+import { useAuthStore } from '@/lib/auth-store'
 
 const NAV_ITEMS = [
   { href: '/discover', icon: Compass, label: 'Discover' },
-  { href: '/bookings', icon: Calendar, label: 'Bookings' },
-  { href: '/messages', icon: MessageCircle, label: 'Messages' },
-  { href: '/profile', icon: User, label: 'Profile' },
+  { href: '/bookings', icon: Calendar, label: 'Bookings', auth: true },
+  { href: '/messages', icon: MessageCircle, label: 'Messages', auth: true },
+  { href: '/profile', icon: User, label: 'Profile', auth: true },
 ]
 
 export default function BottomNav() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const { user: jwtUser } = useAuthStore()
+  const user = jwtUser || session?.user
+  const isLoggedIn = !!user
 
   const { data: unread } = useQuery({
     queryKey: ['unread-messages'],
     queryFn: getUnreadCount,
     refetchInterval: 10000,
+    enabled: isLoggedIn,
   })
 
   const unreadCount = unread?.count ?? 0
+
+  const visibleItems = isLoggedIn
+    ? NAV_ITEMS
+    : [...NAV_ITEMS.filter(item => !item.auth), { href: '/login', icon: LogIn, label: 'Sign In' }]
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="bg-white/95 backdrop-blur-lg border-t border-pink-100/50 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
         <div className="flex items-center justify-around h-[72px] max-w-md mx-auto px-2 pt-2 pb-3">
-          {NAV_ITEMS.map(item => {
+          {visibleItems.map(item => {
             const isActive = pathname === item.href || (item.href === '/discover' && pathname.startsWith('/companion'))
             const Icon = item.icon
             const showBadge = item.href === '/messages' && unreadCount > 0

@@ -4,7 +4,7 @@ import { createId } from './utils.js'
 export const roleEnum = pgEnum('Role', ['CLIENT', 'COMPANION', 'ADMIN'])
 export const bookingStatusEnum = pgEnum('BookingStatus', [
   'PENDING_ACCEPTANCE', 'REJECTED', 'AWAITING_PAYMENT',
-  'CONFIRMED', 'COMPLETED', 'CANCELLED', 'EXPIRED'
+  'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED'
 ])
 export const paymentStatusEnum = pgEnum('PaymentStatus', ['PENDING', 'PAID', 'FAILED', 'EXPIRED'])
 export const messageTypeEnum = pgEnum('MessageType', ['TEXT', 'IMAGE', 'SYSTEM'])
@@ -18,6 +18,7 @@ export const verificationStatusEnum = pgEnum('VerificationStatus', ['UNVERIFIED'
 export const users = pgTable('users', {
   id: text('id').primaryKey().$defaultFn(createId),
   email: text('email').notNull().unique(),
+  emailVerified: timestamp('emailVerified', { mode: 'date' }),
   name: text('name'),
   image: text('image'),
   banner: text('banner'),
@@ -152,6 +153,11 @@ export const bookings = pgTable('bookings', {
   stripePaymentIntentId: text('stripePaymentIntentId'),
   paidAt: timestamp('paidAt', { mode: 'date' }),
   refundedAt: timestamp('refundedAt', { mode: 'date' }),
+  meetingCode: text('meetingCode'),
+  codeGeneratedAt: timestamp('codeGeneratedAt', { mode: 'date' }),
+  codeVerified: boolean('codeVerified').default(false).notNull(),
+  verifiedAt: timestamp('verifiedAt', { mode: 'date' }),
+  verificationAttempts: integer('verificationAttempts').default(0).notNull(),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
 })
