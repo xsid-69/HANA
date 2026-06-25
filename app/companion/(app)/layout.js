@@ -3,9 +3,11 @@
 import CompanionSidebar from '@/components/layout/CompanionSidebar'
 import CompanionBottomNav from '@/components/layout/CompanionBottomNav'
 import CompanionTopNav from '@/components/layout/CompanionTopNav'
+import AuthGuard from '@/components/auth/AuthGuard'
 
 export default function CompanionLayout({ children }) {
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[var(--hana-cream)] relative">
       {/* Ambient gradient orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -32,5 +34,6 @@ export default function CompanionLayout({ children }) {
         <CompanionBottomNav />
       </div>
     </div>
+    </AuthGuard>
   )
 }

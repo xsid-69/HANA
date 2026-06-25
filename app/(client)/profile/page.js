@@ -265,11 +265,9 @@ export default function ProfilePage() {
 
   useEffect(() => { fetchMe() }, [fetchMe])
 
-  useEffect(() => {
-    if (!isLoading && !jwtUser && !profile) {
-      router.replace('/login')
-    }
-  }, [isLoading, jwtUser, profile, router])
+  // Auth gating is handled by the (client) layout's AuthGuard, which honors
+  // both auth systems and won't redirect on transient errors. No redirect here
+  // so a momentary null profile (e.g. a slow/failed query) never logs the user out.
 
   const bannerMutation = useMutation({
     mutationFn: updateProfile,

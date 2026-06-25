@@ -3,6 +3,7 @@
 import { Star, Heart } from 'lucide-react'
 import { useUIStore } from '@/store/useUIStore'
 import { motion } from 'framer-motion'
+import { getImageUrl } from '@/lib/image-url'
 
 export default function CompanionCard({ companion, compact }) {
   const openProfileModal = useUIStore(s => s.openProfileModal)
@@ -19,7 +20,7 @@ export default function CompanionCard({ companion, compact }) {
       <div className={`relative ${compact ? 'h-32' : 'h-36'} bg-gradient-to-br from-pink-100 to-purple-100 card-img-zoom overflow-hidden`}>
         {companion.photos?.[0] ? (
           <img
-            src={companion.photos[0]}
+            src={getImageUrl(companion.photos[0])}
             alt={companion.displayName}
             className="w-full h-full object-cover card-img"
           />

@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { getLastCompanion } from '@/lib/session-companion'
 import MeetingCodeCard from '@/components/booking/MeetingCodeCard'
+import { getImageUrl } from '@/lib/image-url'
 import ActiveBookingBanner from '@/components/booking/ActiveBookingBanner'
 import { useUIStore } from '@/store/useUIStore'
 
@@ -257,7 +258,7 @@ function BookingsInner() {
         <div className="mx-5 p-4 bg-white rounded-2xl border border-[var(--hana-subtle)]/30 shadow-sm flex items-center gap-3 mb-5">
           <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-xl shrink-0">
             {companion?.photos?.[0] ? (
-              <img src={companion.photos[0]} alt={companion.displayName} className="w-full h-full object-cover" />
+              <img src={getImageUrl(companion.photos[0])} alt={companion.displayName} className="w-full h-full object-cover" />
             ) : '🌸'}
           </div>
           <div className="flex-1 min-w-0">
@@ -412,7 +413,7 @@ function BookingsInner() {
 
                   <div className="relative rounded-2xl overflow-hidden h-44 mb-5 bg-gradient-to-br from-pink-100 to-purple-100">
                     {companion?.photos?.[0] ? (
-                      <img src={companion.photos[0]} alt={companion.displayName} className="w-full h-full object-cover" />
+                      <img src={getImageUrl(companion.photos[0])} alt={companion.displayName} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-6xl animate-float-gentle">🌸</div>
                     )}
@@ -565,27 +566,36 @@ function BookingsInner() {
 
 function CountdownTimer({ expiresAt }) {
   const [timeLeft, setTimeLeft] = useState('')
+  const [expired, setExpired] = useState(false)
 
   useEffect(() => {
     const update = () => {
       const now = Date.now()
       const expires = new Date(expiresAt).getTime()
       const diff = expires - now
-      if (diff <= 0) { setTimeLeft('Expired'); return }
-      const mins = Math.floor(diff / 60000)
-      const secs = Math.floor((diff % 60000) / 1000)
-      setTimeLeft(`${mins}:${secs.toString().padStart(2, '0')}`)
+      if (diff <= 0) { setTimeLeft('Expired'); setExpired(true); return }
+      setExpired(false)
+      const totalSecs = Math.floor(diff / 1000)
+      const hrs = Math.floor(totalSecs / 3600)
+      const mins = Math.floor((totalSecs % 3600) / 60)
+      const secs = totalSecs % 60
+      if (hrs > 0) {
+        setTimeLeft(`${hrs}h ${mins}m`)
+      } else {
+        setTimeLeft(`${mins}:${secs.toString().padStart(2, '0')}`)
+      }
     }
     update()
     const interval = setInterval(update, 1000)
     return () => clearInterval(interval)
   }, [expiresAt])
 
-  const isUrgent = timeLeft !== 'Expired' && parseInt(timeLeft) < 5
+  // Urgent when under 5 minutes remain (only relevant for the short m:ss format).
+  const isUrgent = !expired && !timeLeft.includes('h') && parseInt(timeLeft) < 5
 
   return (
     <div className={`flex items-center gap-1.5 text-sm font-mono font-bold ${
-      timeLeft === 'Expired' ? 'text-red-500' : isUrgent ? 'text-red-500 animate-pulse' : 'text-purple-600'
+      expired ? 'text-red-500' : isUrgent ? 'text-red-500 animate-pulse' : 'text-purple-600'
     }`}>
       <Timer className="w-4 h-4" />
       {timeLeft}
@@ -644,7 +654,7 @@ function BookingCard({ booking }) {
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0">
               {booking.companion?.photos?.[0] || booking.companion?.user?.image ? (
-                <img src={booking.companion?.photos?.[0] || booking.companion?.user?.image} alt="" className="w-full h-full object-cover" />
+                <img src={getImageUrl(booking.companion?.photos?.[0] || booking.companion?.user?.image)} alt="" className="w-full h-full object-cover" />
               ) : <span className="text-lg">🌸</span>}
             </div>
             <div>
@@ -670,6 +680,18 @@ function BookingCard({ booking }) {
           <span className="text-base font-bold text-[var(--hana-charcoal)]">₹{booking.totalAmount?.toLocaleString('en-IN')}</span>
         </div>
       </div>
+
+      {booking.status === 'PENDING_ACCEPTANCE' && (
+        <div className="px-4 py-3 bg-amber-50/50 border-t border-amber-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-amber-700">Waiting for companion</p>
+              <p className="text-xs text-amber-600 mt-0.5">Request expires if not accepted in time</p>
+            </div>
+            {booking.requestExpiresAt && <CountdownTimer expiresAt={booking.requestExpiresAt} />}
+          </div>
+        </div>
+      )}
 
       {needsPayment && (
         <div className="px-4 py-3 bg-purple-50/50 border-t border-purple-100">

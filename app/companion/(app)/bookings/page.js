@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Fragment } from 'react'
+import { useState, Fragment, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCompanionBookings, acceptBooking, rejectBooking, companionCancelBooking, completeBooking } from '@/app/actions/bookings'
@@ -13,6 +13,38 @@ import CompanionActiveBanner from '@/components/booking/CompanionActiveBanner'
 import { useUIStore } from '@/store/useUIStore'
 
 const TABS = ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled']
+
+// Shows how long the companion has left to respond to a request.
+function RequestCountdown({ expiresAt }) {
+  const [label, setLabel] = useState('')
+  const [expired, setExpired] = useState(false)
+
+  useEffect(() => {
+    if (!expiresAt) return
+    const update = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now()
+      if (diff <= 0) { setLabel('Expired'); setExpired(true); return }
+      setExpired(false)
+      const totalSecs = Math.floor(diff / 1000)
+      const hrs = Math.floor(totalSecs / 3600)
+      const mins = Math.floor((totalSecs % 3600) / 60)
+      const secs = totalSecs % 60
+      setLabel(hrs > 0 ? `${hrs}h ${mins}m` : `${mins}:${secs.toString().padStart(2, '0')}`)
+    }
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [expiresAt])
+
+  if (!expiresAt) return null
+
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium font-mono ${expired ? 'text-red-500' : 'text-amber-600'}`}>
+      <Timer className="w-3.5 h-3.5" />
+      {expired ? 'Expired' : `Respond in ${label}`}
+    </span>
+  )
+}
 
 const STATUS_CONFIG = {
   PENDING_ACCEPTANCE: { label: 'Pending Acceptance', color: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
@@ -309,21 +341,26 @@ export default function CompanionBookingsPage() {
                 </div>
 
                 {booking.status === 'PENDING_ACCEPTANCE' && (
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50">
-                    <button
-                      onClick={() => accept.mutate(booking.id)}
-                      disabled={accept.isPending}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 transition-colors disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Accept
-                    </button>
-                    <button
-                      onClick={() => reject.mutate({ id: booking.id, reason: 'Not available' })}
-                      disabled={reject.isPending}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
-                    >
-                      <XCircle className="w-3.5 h-3.5" /> Decline
-                    </button>
+                  <div className="mt-3 pt-3 border-t border-gray-50">
+                    <div className="flex justify-end mb-2">
+                      <RequestCountdown expiresAt={booking.requestExpiresAt} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => accept.mutate(booking.id)}
+                        disabled={accept.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Accept
+                      </button>
+                      <button
+                        onClick={() => reject.mutate({ id: booking.id, reason: 'Not available' })}
+                        disabled={reject.isPending}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-red-50 text-red-500 text-xs font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Decline
+                      </button>
+                    </div>
                   </div>
                 )}
 

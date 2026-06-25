@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export function useBookingRealtime(bookingId, onUpdate) {
+  const instanceId = useId()
+
   useEffect(() => {
     if (!bookingId) return
 
     const channel = supabase
-      .channel(`booking:${bookingId}`)
+      .channel(`booking:${bookingId}:${instanceId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -18,15 +20,17 @@ export function useBookingRealtime(bookingId, onUpdate) {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [bookingId, onUpdate])
+  }, [bookingId, onUpdate, instanceId])
 }
 
 export function useBookingsRealtime(userId, onUpdate) {
+  const instanceId = useId()
+
   useEffect(() => {
     if (!userId) return
 
     const channel = supabase
-      .channel(`user-bookings:${userId}`)
+      .channel(`user-bookings:${userId}:${instanceId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -36,5 +40,5 @@ export function useBookingsRealtime(userId, onUpdate) {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [userId, onUpdate])
+  }, [userId, onUpdate, instanceId])
 }

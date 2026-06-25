@@ -7,6 +7,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/layout/BottomNav'
 import { saveLastCompanion } from '@/lib/session-companion'
+import { getImageUrl } from '@/lib/image-url'
 
 export default function CompanionProfileClient({ companion, isOwnProfile }) {
   const router = useRouter()
@@ -27,7 +28,7 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
         <div className="relative h-[440px] w-full overflow-hidden">
           {companion.photos?.[0] ? (
             <img
-              src={companion.photos[0]}
+              src={getImageUrl(companion.photos[0])}
               alt={companion.displayName}
               className="w-full h-full object-cover"
             />
@@ -142,7 +143,7 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
                   whileTap={{ scale: 0.96 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 >
-                  <img src={photo} alt="" className="w-full h-full object-cover" />
+                  <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover" />
                 </motion.div>
               ))}
             </div>
@@ -336,7 +337,7 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
             <div className="relative rounded-[1.75rem] overflow-hidden aspect-[3/4] bg-gradient-to-br from-pink-100 to-purple-100 shadow-xl shadow-pink-200/25 hover:shadow-2xl hover:shadow-pink-300/30 transition-all duration-500">
               {companion.photos?.[0] ? (
                 <img
-                  src={companion.photos[0]}
+                  src={getImageUrl(companion.photos[0])}
                   alt={companion.displayName}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
                 />
@@ -381,7 +382,7 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
                     whileTap={{ scale: 0.95 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                   >
-                    <img src={photo} alt="" className="w-full h-full object-cover" />
+                    <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover" />
                   </motion.div>
                 ))}
               </div>

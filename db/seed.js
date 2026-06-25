@@ -2,10 +2,14 @@ import 'dotenv/config'
 import pg from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { users, companions, experiences, availabilities, bookings, reviews, savedCompanions, notifications } from './schema.js'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
+import bcrypt from 'bcryptjs'
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const db = drizzle(pool)
+
+// Password for all demo accounts: sid123
+const DEMO_PASSWORD = await bcrypt.hash('sid123', 12)
 
 const COMPANIONS = [
   {
@@ -20,8 +24,8 @@ const COMPANIONS = [
     tags: ['food', 'cafés', 'Bollywood', 'photography'],
     hourlyRate: 1200,
     photos: [
-      'https://images.unsplash.com/photo-1610216705422-caa3fcb6d158?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600&h=800&fit=crop&crop=face',
+      'https://i.pinimg.com/736x/43/90/83/439083cbd18d63796d151d7f738b74cc.jpg',
+      'https://i.pinimg.com/736x/43/90/83/439083cbd18d63796d151d7f738b74cc.jpg',
     ],
     experiences: [
       { name: 'Street Food Walk', emoji: '🍛' },
@@ -41,8 +45,8 @@ const COMPANIONS = [
     tags: ['art', 'music', 'tech', 'craft beer'],
     hourlyRate: 1400,
     photos: [
-      'https://images.unsplash.com/photo-1614644147798-f8c0fc9da7f6?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1617019114583-affb34d1b3cd?w=600&h=800&fit=crop&crop=face',
+      'https://www.shutterstock.com/image-photo/close-portrait-beautiful-young-attractive-260nw-1381098305.jpg',
+      'https://www.shutterstock.com/image-photo/close-portrait-beautiful-young-attractive-260nw-1381098305.jpg',
     ],
     experiences: [
       { name: 'Art Gallery Tour', emoji: '🎨' },
@@ -62,8 +66,8 @@ const COMPANIONS = [
     tags: ['culture', 'backwaters', 'spices', 'cuisine'],
     hourlyRate: 900,
     photos: [
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&h=800&fit=crop&crop=face',
+      'https://i.pinimg.com/736x/b8/9f/f7/b89ff7c39099d61f6ccfb4067c2e81d4.jpg',
+      'https://i.pinimg.com/736x/b8/9f/f7/b89ff7c39099d61f6ccfb4067c2e81d4.jpg',
     ],
     experiences: [
       { name: 'Spice Market Walk', emoji: '🌶️' },
@@ -83,8 +87,8 @@ const COMPANIONS = [
     tags: ['heritage', 'textiles', 'history', 'architecture'],
     hourlyRate: 1000,
     photos: [
-      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop&crop=face',
+      'https://i.pinimg.com/736x/ec/84/82/ec84824afe18d0f13510f650277b3d75.jpg',
+      'https://i.pinimg.com/736x/ec/84/82/ec84824afe18d0f13510f650277b3d75.jpg',
     ],
     experiences: [
       { name: 'Heritage Walk', emoji: '🏛️' },
@@ -104,8 +108,8 @@ const COMPANIONS = [
     tags: ['history', 'street art', 'cafés', 'monuments'],
     hourlyRate: 1300,
     photos: [
-      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=600&h=800&fit=crop&crop=face',
+      'https://i.pinimg.com/736x/dc/44/d9/dc44d9e4393b07f59defb727fa0418fe.jpg',
+      'https://i.pinimg.com/736x/dc/44/d9/dc44d9e4393b07f59defb727fa0418fe.jpg',
     ],
     experiences: [
       { name: 'Monument Tour', emoji: '🕌' },
@@ -125,8 +129,8 @@ const COMPANIONS = [
     tags: ['classical dance', 'music', 'temples', 'culture'],
     hourlyRate: 1100,
     photos: [
-      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&h=800&fit=crop&crop=face',
+      'https://i.pinimg.com/736x/a4/15/26/a41526d0f18cb8651313d6d3f8147c68.jpg',
+      'https://i.pinimg.com/736x/a4/15/26/a41526d0f18cb8651313d6d3f8147c68.jpg',
     ],
     experiences: [
       { name: 'Temple Walk', emoji: '🛕' },
@@ -146,8 +150,8 @@ const COMPANIONS = [
     tags: ['fitness', 'yoga', 'hiking', 'wellness'],
     hourlyRate: 950,
     photos: [
-      'https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=600&h=800&fit=crop&crop=face',
+      'https://i.pinimg.com/736x/e9/18/88/e91888f77157b857540f9af729d5bb97.jpg',
+      'https://i.pinimg.com/736x/e9/18/88/e91888f77157b857540f9af729d5bb97.jpg',
     ],
     experiences: [
       { name: 'Sunrise Hike', emoji: '🌄' },
@@ -167,8 +171,8 @@ const COMPANIONS = [
     tags: ['biryani', 'pearls', 'history', 'food'],
     hourlyRate: 1050,
     photos: [
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop&crop=face',
+      'https://i.pinimg.com/736x/bd/46/8a/bd468ad4a4d4c4829947ecde625b2676.jpg',
+      'https://i.pinimg.com/736x/bd/46/8a/bd468ad4a4d4c4829947ecde625b2676.jpg',
     ],
     experiences: [
       { name: 'Biryani Trail', emoji: '🍚' },
@@ -180,7 +184,7 @@ const COMPANIONS = [
     email: 'pooja.verma@demo.hana.app',
     name: 'Pooja Verma',
     displayName: 'Pooja',
-    age: 29,
+    age: 24,
     city: 'Jaipur',
     district: 'Pink City',
     bio: 'Rajasthani royalty vibes, zero pretension. Palaces, block printing workshops, chai with a view — Jaipur is magical and I\'m your guide to every pink-walled secret.',
@@ -188,8 +192,8 @@ const COMPANIONS = [
     tags: ['palaces', 'block printing', 'chai', 'royalty'],
     hourlyRate: 1150,
     photos: [
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=600&h=800&fit=crop&crop=face',
+      'https://i.pinimg.com/736x/15/9c/8e/159c8e026339a803795b9ad49a7b4a89.jpg',
+      'https://i.pinimg.com/736x/15/9c/8e/159c8e026339a803795b9ad49a7b4a89.jpg',
     ],
     experiences: [
       { name: 'Palace Tour', emoji: '🏰' },
@@ -209,8 +213,8 @@ const COMPANIONS = [
     tags: ['books', 'coffee', 'indie films', 'art'],
     hourlyRate: 1250,
     photos: [
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&h=800&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&h=800&fit=crop&crop=face',
+      'https://i.pinimg.com/1200x/1c/79/39/1c79392d74dd091fff607ecb82125f83.jpg',
+      'https://i.pinimg.com/1200x/1c/79/39/1c79392d74dd091fff607ecb82125f83.jpg',
     ],
     experiences: [
       { name: 'Bookstore Crawl', emoji: '📚' },
@@ -218,24 +222,238 @@ const COMPANIONS = [
       { name: 'Arthouse Cinema', emoji: '🎬' },
     ],
   },
+  // --- Maharashtrian Companions (5) ---
+  {
+    email: 'sakshi.kulkarni@demo.hana.app',
+    name: 'Sakshi Kulkarni',
+    displayName: 'Sakshi',
+    age: 25,
+    city: 'Pune',
+    district: 'Shivajinagar',
+    bio: 'Puneri mulgi with a love for theatre and Marathi literature. From Bal Gandharva Rang Mandir to hidden bookshops on FC Road — I\'ll show you Pune\'s cultured soul.',
+    languages: ['Marathi', 'Hindi', 'English'],
+    tags: ['theatre', 'literature', 'culture', 'history'],
+    hourlyRate: 1000,
+    photos: [
+      'https://www.shutterstock.com/image-photo/ultra-realistic-indian-ai-girl-260nw-2735385401.jpg',
+      'https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?w=600&h=800&fit=crop&crop=face',
+    ],
+    experiences: [
+      { name: 'Marathi Theatre Night', emoji: '🎭' },
+      { name: 'FC Road Walk', emoji: '🚶' },
+      { name: 'Shaniwar Wada Tour', emoji: '🏰' },
+    ],
+  },
+  {
+    email: 'rutuja.patil@demo.hana.app',
+    name: 'Rutuja Patil',
+    displayName: 'Rutuja',
+    age: 23,
+    city: 'Mumbai',
+    district: 'Dadar',
+    bio: 'Marathi manoos and street food queen. Dadar\'s flower market at dawn, vada pav trails, and Shivaji Park sunsets — experience authentic Mumbai with a local touch.',
+    languages: ['Marathi', 'Hindi', 'English'],
+    tags: ['street food', 'markets', 'local culture', 'photography'],
+    hourlyRate: 1100,
+    photos: [
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHfbAlP8VmQZhP5zd2XGkepdvnX6akiOa39v1C28LreA&s',
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&h=800&fit=crop&crop=face',
+    ],
+    experiences: [
+      { name: 'Dadar Flower Market', emoji: '🌺' },
+      { name: 'Vada Pav Trail', emoji: '🍔' },
+      { name: 'Shivaji Park Evening', emoji: '🌇' },
+    ],
+  },
+  {
+    email: 'tanvi.joshi@demo.hana.app',
+    name: 'Tanvi Joshi',
+    displayName: 'Tanvi',
+    age: 26,
+    city: 'Kolhapur',
+    district: 'Mahalaxmi',
+    bio: 'Kolhapuri girl with fire in her soul. Temples, tambda-pandhra rassa trails, and wrestling akharas — I\'ll show you the warrior spirit of Maharashtra.',
+    languages: ['Marathi', 'Hindi', 'English'],
+    tags: ['food', 'temples', 'wrestling', 'tradition'],
+    hourlyRate: 850,
+    photos: [
+      'https://www.shutterstock.com/image-photo/indian-girl-extra-long-hair-260nw-2564831521.jpg',
+      'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=600&h=800&fit=crop&crop=face',
+    ],
+    experiences: [
+      { name: 'Mahalaxmi Temple', emoji: '🛕' },
+      { name: 'Kolhapuri Misal Trail', emoji: '🍛' },
+      { name: 'Rankala Lake Walk', emoji: '🌊' },
+    ],
+  },
+  {
+    email: 'gauri.deshpande@demo.hana.app',
+    name: 'Gauri Deshpande',
+    displayName: 'Gauri',
+    age: 27,
+    city: 'Nashik',
+    district: 'Panchavati',
+    bio: 'Wine lover from India\'s wine capital. Vineyard tours, Godavari ghats at sunrise, and the spiritual calm of Trimbakeshwar — Nashik is more than you think.',
+    languages: ['Marathi', 'Hindi', 'English'],
+    tags: ['wine', 'vineyards', 'spirituality', 'nature'],
+    hourlyRate: 1050,
+    photos: [
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSMnWOj2OpOY5oFRe0tRHp0zBJK2yK4ebOZ3XCPTvmrLw&s',
+      'https://images.unsplash.com/photo-1614644147798-f8c0fc9da7f6?w=600&h=800&fit=crop&crop=face',
+    ],
+    experiences: [
+      { name: 'Vineyard Tour', emoji: '🍷' },
+      { name: 'Godavari Ghat Walk', emoji: '🌅' },
+      { name: 'Sula Tasting', emoji: '🥂' },
+    ],
+  },
+  {
+    email: 'shruti.bhosale@demo.hana.app',
+    name: 'Shruti Bhosale',
+    displayName: 'Shruti',
+    age: 24,
+    city: 'Aurangabad',
+    district: 'CIDCO',
+    bio: 'History nerd living next to Ajanta-Ellora. Ancient caves, Bibi Ka Maqbara by moonlight, and Aurangabad\'s Mughlai food scene — let\'s time travel together.',
+    languages: ['Marathi', 'Hindi', 'Urdu', 'English'],
+    tags: ['history', 'caves', 'architecture', 'Mughlai food'],
+    hourlyRate: 900,
+    photos: [
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjphxLqbFSNL9IsdenUuDvQ8KPxwnCBuMh3YTLL6ww2w&s',
+      'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600&h=800&fit=crop&crop=face',
+    ],
+    experiences: [
+      { name: 'Ellora Caves Trip', emoji: '🏛️' },
+      { name: 'Bibi Ka Maqbara', emoji: '🕌' },
+      { name: 'Mughlai Food Walk', emoji: '🍗' },
+    ],
+  },
+  // --- Nagpur Companions (5) ---
+  {
+    email: 'vaishnavi.thakre@demo.hana.app',
+    name: 'Vaishnavi Thakre',
+    displayName: 'Vaishnavi',
+    age: 20,
+    city: 'Nagpur',
+    district: 'Sadar',
+    bio: 'Sadar bazaar enthusiast and chai addict. From the busiest markets to quiet Japanese Garden mornings — I know every mood Nagpur has to offer.',
+    languages: ['Marathi', 'Hindi', 'English'],
+    tags: ['shopping', 'chai', 'gardens', 'walks'],
+    hourlyRate: 750,
+    photos: [
+      'https://i.pinimg.com/736x/33/ce/27/33ce272727f138d964fcaa8acd5c465c.jpg',
+      'https://i.pinimg.com/736x/33/ce/27/33ce272727f138d964fcaa8acd5c465c.jpg',
+    ],
+    experiences: [
+      { name: 'Sadar Bazaar Tour', emoji: '🛍️' },
+      { name: 'Japanese Garden Walk', emoji: '🌸' },
+      { name: 'Chai & Samosa Trail', emoji: '☕' },
+    ],
+  },
+  {
+    email: 'nikita.borkar@demo.hana.app',
+    name: 'Nikita Borkar',
+    displayName: 'Nikita',
+    age: 21,
+    city: 'Nagpur',
+    district: 'Civil Lines',
+    bio: 'Wildlife lover and weekend trekker. Pench Tiger Reserve, Ambazari garden trails, and Seminary Hills sunsets — Nagpur\'s green side is my happy place.',
+    languages: ['Marathi', 'Hindi', 'English'],
+    tags: ['wildlife', 'trekking', 'nature', 'photography'],
+    hourlyRate: 900,
+    photos: [
+      'https://i.pinimg.com/736x/b3/3f/4c/b33f4ce45db9bdffa88f7d73aa0fd418.jpg',
+      'https://i.pinimg.com/736x/b3/3f/4c/b33f4ce45db9bdffa88f7d73aa0fd418.jpg',
+    ],
+    experiences: [
+      { name: 'Ambazari Nature Walk', emoji: '🌿' },
+      { name: 'Seminary Hills Sunset', emoji: '🌄' },
+      { name: 'Pench Safari Plan', emoji: '🐅' },
+    ],
+  },
+  {
+    email: 'aditi.raut@demo.hana.app',
+    name: 'Aditi Raut',
+    displayName: 'Aditi',
+    age: 26,
+    city: 'Nagpur',
+    district: 'Sitabuldi',
+    bio: 'Foodie and Nagpur history buff. Sitabuldi Fort stories, zero-mile marker visits, and saoji food adventures — every outing with me is spicy and memorable!',
+    languages: ['Marathi', 'Hindi', 'English', 'Varhadi'],
+    tags: ['food', 'history', 'spicy cuisine', 'heritage'],
+    hourlyRate: 850,
+    photos: [
+      'https://i.pinimg.com/originals/1d/29/af/1d29af4da1b34a29bc65ac649a69f6ea.jpg',
+      'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&h=800&fit=crop&crop=face',
+    ],
+    experiences: [
+      { name: 'Saoji Food Trail', emoji: '🌶️' },
+      { name: 'Sitabuldi Fort Tour', emoji: '🏰' },
+      { name: 'Zero Mile Walk', emoji: '📍' },
+    ],
+  },
+  {
+    email: 'palak.wankhede@demo.hana.app',
+    name: 'Palak Wankhede',
+    displayName: 'Palak',
+    age: 22,
+    city: 'Nagpur',
+    district: 'Manewada',
+    bio: 'Café hopper and sunset chaser. Nagpur\'s growing café culture, Gorewada lake, and chill evening drives — if you want good vibes and great company, I\'m your person.',
+    languages: ['Marathi', 'Hindi', 'English'],
+    tags: ['cafés', 'sunsets', 'drives', 'vibes'],
+    hourlyRate: 700,
+    photos: [
+      'https://i.pinimg.com/1200x/97/15/23/9715234a92184376bddecb8164da817d.jpg',
+      'https://i.pinimg.com/1200x/97/15/23/9715234a92184376bddecb8164da817d.jpg',
+    ],
+    experiences: [
+      { name: 'Café Hopping', emoji: '☕' },
+      { name: 'Gorewada Lake', emoji: '🦜' },
+      { name: 'Sunset Drive', emoji: '🚗' },
+    ],
+  },
 ]
 
-async function main() {
-  console.log('Clearing old demo data...')
-  await db.delete(reviews)
-  await db.delete(notifications)
-  await db.delete(savedCompanions)
-  await db.delete(bookings)
-  await db.delete(experiences)
-  await db.delete(availabilities)
-  await db.delete(companions)
+const DEMO_EMAILS = COMPANIONS.map(c => c.email)
 
-  // Delete demo users specifically
-  for (const data of COMPANIONS) {
-    await db.delete(users).where(eq(users.email, data.email))
+async function main() {
+  console.log('Clearing old DEMO data only (preserving real user data)...')
+
+  // Get demo companion IDs first
+  const demoUsers = await db.select({ id: users.id })
+    .from(users)
+    .where(inArray(users.email, DEMO_EMAILS))
+
+  const demoUserIds = demoUsers.map(u => u.id)
+
+  if (demoUserIds.length > 0) {
+    const demoCompanions = await db.select({ id: companions.id })
+      .from(companions)
+      .where(inArray(companions.userId, demoUserIds))
+
+    const demoCompanionIds = demoCompanions.map(c => c.id)
+
+    if (demoCompanionIds.length > 0) {
+      // Delete only demo-related data
+      await db.delete(reviews).where(inArray(reviews.companionId, demoCompanionIds))
+      await db.delete(bookings).where(inArray(bookings.companionId, demoCompanionIds))
+      await db.delete(savedCompanions).where(inArray(savedCompanions.companionId, demoCompanionIds))
+      await db.delete(experiences).where(inArray(experiences.companionId, demoCompanionIds))
+      await db.delete(availabilities).where(inArray(availabilities.companionId, demoCompanionIds))
+      await db.delete(companions).where(inArray(companions.id, demoCompanionIds))
+    }
+
+    // Delete notifications for demo users
+    await db.delete(notifications).where(inArray(notifications.userId, demoUserIds))
+
+    // Delete demo users
+    for (const email of DEMO_EMAILS) {
+      await db.delete(users).where(eq(users.email, email))
+    }
   }
 
-  console.log('Seeding 10 companions...')
+  console.log('Seeding 19 companions...')
 
   for (let i = 0; i < COMPANIONS.length; i++) {
     const data = COMPANIONS[i]
@@ -243,6 +461,8 @@ async function main() {
     const [user] = await db.insert(users).values({
       email: data.email,
       name: data.name,
+      image: data.photos[0], // Profile picture (pfp)
+      password: DEMO_PASSWORD,
       role: 'COMPANION',
       city: data.city,
       onboarded: true,
@@ -302,7 +522,7 @@ async function main() {
     console.log(`  ✓ ${data.name} — ${data.city}`)
   }
 
-  console.log('\nSeeding complete! 10 companions added.')
+  console.log('\nSeeding complete! 19 companions added.')
 }
 
 main()

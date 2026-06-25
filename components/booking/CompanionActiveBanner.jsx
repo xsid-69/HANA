@@ -1,37 +1,74 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Clock, Timer, IndianRupee } from 'lucide-react'
-import { getCompanionBookings, completeBooking } from '@/app/actions/bookings'
+import { getCompanionBookings, completeBooking, autoCompleteBooking } from '@/app/actions/bookings'
+import { getPendingExtension } from '@/app/actions/extensions'
 import { useBookingRealtime } from '@/hooks/useBookingRealtime'
+import { useExtensionRealtime } from '@/hooks/useExtensionRealtime'
+import ExtensionApprovalCard from './ExtensionApprovalCard'
 import { useUIStore } from '@/store/useUIStore'
 
-function CountdownTimer({ startTime, durationHours }) {
+// TESTING: must match ActiveBookingBanner. Remove for production.
+const TIME_ACCELERATION = 24
+
+function parseTimeStr(timeStr) {
+  if (!timeStr) return { hours: 0, minutes: 0 }
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i)
+  if (!match) return { hours: 0, minutes: 0 }
+  let hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  const period = match[3]
+  if (period) {
+    if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12
+    if (period.toUpperCase() === 'AM' && hours === 12) hours = 0
+  }
+  return { hours, minutes }
+}
+
+function CountdownTimer({ bookingDate, endTimeStr, startTime, durationHours, onComplete }) {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0, progress: 0 })
+  const completedRef = useRef(false)
 
   useEffect(() => {
-    const totalMs = durationHours * 60 * 60 * 1000
-    const endTime = new Date(startTime).getTime() + totalMs
+    let endMs
+    if (endTimeStr && bookingDate) {
+      const { hours: eh, minutes: em } = parseTimeStr(endTimeStr)
+      const end = new Date(bookingDate)
+      end.setHours(eh, em, 0, 0)
+      endMs = end.getTime()
+    } else {
+      const totalMs = durationHours * 60 * 60 * 1000
+      endMs = new Date(startTime).getTime() + totalMs
+    }
+
+    const startMs = new Date(startTime).getTime()
+    const totalMs = endMs - startMs
 
     function update() {
-      const now = Date.now()
-      const remaining = Math.max(0, endTime - now)
-      const elapsed = totalMs - remaining
-      const progress = Math.min(100, (elapsed / totalMs) * 100)
+      const realElapsed = Date.now() - startMs
+      const virtualElapsed = realElapsed * TIME_ACCELERATION
+      const remaining = Math.max(0, totalMs - virtualElapsed)
+      const progress = Math.min(100, (virtualElapsed / totalMs) * 100)
 
       const hours = Math.floor(remaining / (1000 * 60 * 60))
       const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
       const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
 
       setTimeLeft({ hours, minutes, seconds, progress })
+
+      if (remaining <= 0 && !completedRef.current) {
+        completedRef.current = true
+        onComplete?.()
+      }
     }
 
     update()
     const interval = setInterval(update, 1000)
     return () => clearInterval(interval)
-  }, [startTime, durationHours])
+  }, [bookingDate, endTimeStr, startTime, durationHours, onComplete])
 
   return (
     <div className="flex items-center gap-3">
@@ -60,6 +97,7 @@ export default function CompanionActiveBanner() {
   const queryClient = useQueryClient()
   const addToast = useUIStore((s) => s.addToast)
   const [completing, setCompleting] = useState(false)
+  const [pendingExt, setPendingExt] = useState(null)
 
   const { data: inProgressBookings = [] } = useQuery({
     queryKey: ['companion-bookings', 'IN_PROGRESS'],
@@ -75,12 +113,48 @@ export default function CompanionActiveBanner() {
   const activeBooking = inProgressBookings[0]
   const upcomingBooking = confirmedBookings[0]
 
+  // Poll the pending extension so requests appear even without realtime.
+  const { data: polledExtension } = useQuery({
+    queryKey: ['companion-pending-extension', activeBooking?.id],
+    queryFn: () => getPendingExtension(activeBooking.id),
+    enabled: !!activeBooking,
+    refetchInterval: 5000,
+  })
+
+  const handleAutoComplete = useCallback(async () => {
+    if (!activeBooking) return
+    try {
+      await autoCompleteBooking(activeBooking.id)
+    } catch {}
+    queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
+  }, [activeBooking, queryClient])
+
   useBookingRealtime(activeBooking?.id, useCallback((updated) => {
     queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
     if (updated.status === 'COMPLETED') {
       addToast({ type: 'success', title: 'Session Complete', message: 'Great work! The booking has been completed.' })
     }
   }, [queryClient, addToast]))
+
+  useExtensionRealtime(activeBooking?.id, useCallback((eventType, payload) => {
+    if (eventType === 'INSERT' && payload?.status === 'PENDING') {
+      setPendingExt(payload)
+    }
+    if (payload?.status === 'PAID') {
+      setPendingExt(null)
+      queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
+      addToast({ type: 'success', title: 'Booking Extended', message: 'The booking has been extended successfully.' })
+    }
+  }, [queryClient, addToast]))
+
+  // Show the approval card whenever there's a pending request (polling-driven).
+  useEffect(() => {
+    if (polledExtension?.status === 'PENDING') {
+      setPendingExt(polledExtension)
+    } else if (!polledExtension) {
+      setPendingExt(null)
+    }
+  }, [polledExtension])
 
   async function handleComplete() {
     if (!activeBooking) return
@@ -149,12 +223,15 @@ export default function CompanionActiveBanner() {
               </div>
 
               <CountdownTimer
+                bookingDate={activeBooking.date}
+                endTimeStr={activeBooking.endTime}
                 startTime={activeBooking.verifiedAt || activeBooking.updatedAt}
                 durationHours={activeBooking.durationHours}
+                onComplete={handleAutoComplete}
               />
             </div>
 
-            <div className="relative flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+            <div className="relative flex items-center mt-3 pt-3 border-t border-white/10">
               <div className="flex items-center gap-4">
                 <span className="text-xs text-white/60 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" /> {activeBooking.startTime} - {activeBooking.endTime}
@@ -166,17 +243,32 @@ export default function CompanionActiveBanner() {
                   <IndianRupee className="w-3 h-3" /> {activeBooking.totalAmount?.toLocaleString('en-IN')}
                 </span>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleComplete}
-                disabled={completing}
-                className="px-4 py-2 rounded-xl bg-white text-pink-600 text-xs font-bold shadow-lg hover:bg-white/90 transition-colors disabled:opacity-50"
-              >
-                {completing ? 'Completing...' : 'End Session'}
-              </motion.button>
             </div>
           </div>
+        </motion.div>
+      )}
+
+      {pendingExt && activeBooking && (
+        <motion.div
+          key="extension-approval"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="mb-6"
+        >
+          <ExtensionApprovalCard
+            extension={pendingExt}
+            booking={activeBooking}
+            clientName={activeBooking.client?.name || 'Client'}
+            onResolved={(result) => {
+              setPendingExt(null)
+              if (result === 'approved') {
+                addToast({ type: 'success', title: 'Extension Approved', message: 'Waiting for client payment.' })
+              } else {
+                addToast({ type: 'info', title: 'Extension Declined', message: 'The booking continues as scheduled.' })
+              }
+            }}
+          />
         </motion.div>
       )}
 

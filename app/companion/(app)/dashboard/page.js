@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCompanionDashboardStats, getCompanionBookings, acceptBooking, rejectBooking } from '@/app/actions/bookings'
+import { getExtensionAnalytics } from '@/app/actions/extensions'
 import {
   IndianRupee, Calendar, Clock, Star, ChevronRight,
   Check, X, TrendingUp, Shield, User,
@@ -189,6 +190,11 @@ export default function CompanionDashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['companion-dashboard-stats'],
     queryFn: getCompanionDashboardStats,
+  })
+
+  const { data: extensionStats } = useQuery({
+    queryKey: ['extension-analytics'],
+    queryFn: getExtensionAnalytics,
   })
 
   const { data: pendingBookings = [] } = useQuery({
@@ -567,6 +573,48 @@ export default function CompanionDashboard() {
           </div>
         </motion.section>
       </div>
+
+      {/* Extension Analytics */}
+      {extensionStats && extensionStats.totalExtensions > 0 && (
+        <motion.section
+          className="rounded-2xl border bg-white p-6"
+          style={{ borderColor: 'var(--hana-subtle)' }}
+          initial="hidden" animate="visible" variants={fadeUp} custom={6}
+        >
+          <h2 className="text-base font-bold text-[var(--hana-charcoal)] flex items-center gap-2 mb-4">
+            <TrendingUp className="w-4 h-4 text-violet-500" />
+            Extension Analytics
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="bg-violet-50 rounded-xl p-4 border border-violet-100">
+              <p className="text-[11px] text-violet-600 uppercase tracking-wide font-medium">Total Extensions</p>
+              <p className="text-2xl font-bold text-violet-700 mt-1">{extensionStats.completedExtensions}</p>
+            </div>
+            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+              <p className="text-[11px] text-emerald-600 uppercase tracking-wide font-medium">Extension Revenue</p>
+              <p className="text-2xl font-bold text-emerald-700 mt-1">₹{extensionStats.extensionRevenue.toLocaleString('en-IN')}</p>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+              <p className="text-[11px] text-blue-600 uppercase tracking-wide font-medium">Avg Duration</p>
+              <p className="text-2xl font-bold text-blue-700 mt-1">{extensionStats.averageExtensionMinutes}m</p>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+              <p className="text-[11px] text-amber-600 uppercase tracking-wide font-medium">Acceptance Rate</p>
+              <p className="text-2xl font-bold text-amber-700 mt-1">{extensionStats.extensionAcceptanceRate}%</p>
+            </div>
+            <div className="bg-pink-50 rounded-xl p-4 border border-pink-100">
+              <p className="text-[11px] text-pink-600 uppercase tracking-wide font-medium">Most Popular</p>
+              <p className="text-2xl font-bold text-pink-700 mt-1">
+                {extensionStats.mostPopularDuration
+                  ? extensionStats.mostPopularDuration >= 60
+                    ? `${extensionStats.mostPopularDuration / 60}h`
+                    : `${extensionStats.mostPopularDuration}m`
+                  : '—'}
+              </p>
+            </div>
+          </div>
+        </motion.section>
+      )}
     </div>
   )
 }

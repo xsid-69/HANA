@@ -9,6 +9,13 @@ import { cookies } from 'next/headers'
 import { randomInt } from 'crypto'
 import { z } from 'zod'
 
+// ── Booking time limits ──────────────────────────────────────────────
+// How long a companion has to accept/reject a client's request before it
+// auto-expires. Capped so a request never outlives the booking start time.
+const REQUEST_ACCEPTANCE_WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
+// How long a client has to pay after the companion accepts.
+const PAYMENT_WINDOW_MS = 30 * 60 * 1000 // 30 minutes
+
 async function getUser() {
   let userId = null
   try {
@@ -82,6 +89,34 @@ export async function createBooking(input) {
   const deposit = 2000
   const totalAmount = subtotal + serviceFee + deposit
 
+  // Request auto-expires after the acceptance window. If the booking starts
+  // sooner than that window, cap it at the booking start — but only when that
+  // is actually in the future, so we never create an already-expired request.
+  // startTime can be 12-hour ("2:00 PM") or 24-hour ("14:00"), so parse both.
+  const parseStart = (timeStr) => {
+    if (!timeStr) return null
+    const m = String(timeStr).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i)
+    if (!m) return null
+    let h = parseInt(m[1], 10)
+    const min = parseInt(m[2], 10)
+    const period = m[3]?.toUpperCase()
+    if (period === 'PM' && h !== 12) h += 12
+    if (period === 'AM' && h === 12) h = 0
+    return { h, min }
+  }
+
+  const windowExpiry = Date.now() + REQUEST_ACCEPTANCE_WINDOW_MS
+  const parsed = parseStart(data.startTime)
+  let requestExpiresAt = new Date(windowExpiry)
+  if (parsed) {
+    const bookingStart = new Date(date)
+    bookingStart.setHours(parsed.h, parsed.min, 0, 0)
+    // Only cap when the booking start is in the future and earlier than the window.
+    if (bookingStart.getTime() > Date.now() && bookingStart.getTime() < windowExpiry) {
+      requestExpiresAt = bookingStart
+    }
+  }
+
   const [booking] = await db.insert(bookings).values({
     clientId: userId,
     companionId: data.companionId,
@@ -98,6 +133,7 @@ export async function createBooking(input) {
     totalAmount,
     status: 'PENDING_ACCEPTANCE',
     paymentStatus: 'PENDING',
+    requestExpiresAt,
   }).returning()
 
   // Increment total requests for companion
@@ -109,8 +145,8 @@ export async function createBooking(input) {
     userId: companion.userId,
     type: 'BOOKING_REQUEST',
     title: 'New Booking Request',
-    body: `You have a new booking request for ${data.activityType}`,
-    data: { bookingId: booking.id },
+    body: `You have a new booking request for ${data.activityType}. Respond before it expires.`,
+    data: { bookingId: booking.id, requestExpiresAt: requestExpiresAt.toISOString() },
   })
 
   return booking
@@ -135,7 +171,22 @@ export async function acceptBooking(bookingId) {
   if (companion?.userId !== userId) throw new Error('Forbidden')
   if (booking.status !== 'PENDING_ACCEPTANCE') throw new Error('Booking cannot be accepted in current state')
 
-  const paymentExpiresAt = new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+  // Reject if the acceptance window has already elapsed.
+  if (booking.requestExpiresAt && new Date() > booking.requestExpiresAt) {
+    await db.update(bookings)
+      .set({ status: 'EXPIRED', updatedAt: new Date() })
+      .where(eq(bookings.id, bookingId))
+    await db.insert(notifications).values({
+      userId: booking.clientId,
+      type: 'PAYMENT_EXPIRED',
+      title: 'Request Expired',
+      body: 'This booking request expired before it could be accepted.',
+      data: { bookingId: booking.id },
+    })
+    throw new Error('This request has expired and can no longer be accepted')
+  }
+
+  const paymentExpiresAt = new Date(Date.now() + PAYMENT_WINDOW_MS)
 
   const [updated] = await db.update(bookings)
     .set({
@@ -306,6 +357,61 @@ export async function expireUnpaidBookings() {
   }
 
   return { expiredCount: expired.length }
+}
+
+// Step 5b: Expire pending requests the companion never responded to
+export async function expirePendingRequests() {
+  const now = new Date()
+
+  const expired = await db.update(bookings)
+    .set({
+      status: 'EXPIRED',
+      updatedAt: now,
+    })
+    .where(and(
+      eq(bookings.status, 'PENDING_ACCEPTANCE'),
+      lt(bookings.requestExpiresAt, now),
+    ))
+    .returning()
+
+  for (const booking of expired) {
+    const [companion] = await db.select({ userId: companions.userId })
+      .from(companions)
+      .where(eq(companions.id, booking.companionId))
+      .limit(1)
+
+    await db.insert(notifications).values([
+      {
+        userId: booking.clientId,
+        type: 'PAYMENT_EXPIRED',
+        title: 'Request Expired',
+        body: 'Your booking request expired before the companion responded. Please try again.',
+        data: { bookingId: booking.id },
+      },
+      {
+        userId: companion?.userId,
+        type: 'PAYMENT_EXPIRED',
+        title: 'Request Expired',
+        body: 'You did not respond to a booking request in time, so it has expired.',
+        data: { bookingId: booking.id },
+      },
+    ].filter(n => n.userId))
+  }
+
+  return { expiredCount: expired.length }
+}
+
+// Convenience: expire both stale pending requests and unpaid confirmations.
+// Safe to call frequently; only touches rows past their deadline.
+export async function expireStaleBookings() {
+  const [requests, payments] = await Promise.all([
+    expirePendingRequests(),
+    expireUnpaidBookings(),
+  ])
+  return {
+    expiredRequests: requests.expiredCount,
+    expiredPayments: payments.expiredCount,
+  }
 }
 
 // Companion cancels a confirmed booking
@@ -504,9 +610,80 @@ export async function completeBooking(bookingId) {
   return updated
 }
 
+// Auto-complete a booking when its session time has elapsed.
+// Callable by either participant (client or companion) and is idempotent —
+// the UI triggers this when the live countdown reaches zero so the active
+// banner doesn't linger after the date is over.
+export async function autoCompleteBooking(bookingId) {
+  const userId = await getUser()
+
+  const [booking] = await db.select()
+    .from(bookings)
+    .where(eq(bookings.id, bookingId))
+    .limit(1)
+
+  if (!booking) throw new Error('Booking not found')
+  if (booking.status === 'COMPLETED') return booking
+  if (booking.status !== 'IN_PROGRESS') throw new Error('Booking is not in progress')
+
+  const [companion] = await db.select({ userId: companions.userId, id: companions.id })
+    .from(companions)
+    .where(eq(companions.id, booking.companionId))
+    .limit(1)
+
+  // Only the client or the companion of this booking may complete it.
+  if (booking.clientId !== userId && companion?.userId !== userId) {
+    throw new Error('Forbidden')
+  }
+
+  // Conditional update guards against double-completion from both sides.
+  const [updated] = await db.update(bookings)
+    .set({ status: 'COMPLETED', updatedAt: new Date() })
+    .where(and(eq(bookings.id, bookingId), eq(bookings.status, 'IN_PROGRESS')))
+    .returning()
+
+  if (!updated) {
+    const [current] = await db.select()
+      .from(bookings)
+      .where(eq(bookings.id, bookingId))
+      .limit(1)
+    return current
+  }
+
+  await db.update(companions)
+    .set({
+      completedBookings: sql`"completedBookings" + 1`,
+      totalBookings: sql`"totalBookings" + 1`,
+      trustScore: sql`LEAST(100, "trustScore" + 1)`,
+    })
+    .where(eq(companions.id, companion.id))
+
+  await db.update(users)
+    .set({
+      completedBookings: sql`"completedBookings" + 1`,
+      trustScore: sql`LEAST(100, "trustScore" + 1)`,
+    })
+    .where(eq(users.id, booking.clientId))
+
+  await recalculateCompanionStats(companion.id)
+
+  await db.insert(notifications).values({
+    userId: booking.clientId,
+    type: 'BOOKING_COMPLETED',
+    title: 'Booking Completed',
+    body: 'Your experience is complete! Leave a review.',
+    data: { bookingId: booking.id },
+  })
+
+  return updated
+}
+
 // Fetch bookings for user
 export async function getMyBookings(input) {
   const userId = await getUser()
+
+  // Opportunistically expire any stale requests/payments before reading.
+  await expireStaleBookings()
 
   const schema = z.object({
     status: z.enum(['PENDING_ACCEPTANCE', 'REJECTED', 'AWAITING_PAYMENT', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED']).optional(),
@@ -548,6 +725,9 @@ export async function getMyBookings(input) {
 export async function getCompanionBookings(input) {
   const userId = await getUser()
 
+  // Opportunistically expire any stale requests/payments before reading.
+  await expireStaleBookings()
+
   const [companion] = await db.select({ id: companions.id })
     .from(companions)
     .where(eq(companions.userId, userId))
@@ -586,6 +766,9 @@ export async function getCompanionBookings(input) {
 // Get companion dashboard stats
 export async function getCompanionDashboardStats() {
   const userId = await getUser()
+
+  // Opportunistically expire any stale requests/payments before reading.
+  await expireStaleBookings()
 
   const [companion] = await db.select()
     .from(companions)

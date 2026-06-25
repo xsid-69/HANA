@@ -15,6 +15,7 @@ import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import Link from 'next/link'
 import { useAuthStore } from '@/lib/auth-store'
 import { useSession } from 'next-auth/react'
+import { getImageUrl } from '@/lib/image-url'
 
 const CITIES = ['Mumbai','Delhi','Bangalore','Hyderabad','Chennai','Kolkata','Jaipur','Pune','Kochi','Varanasi','Nagpur','Amritsar','Lucknow','Ahmedabad','Coimbatore','Thiruvananthapuram']
 const INTERESTS = ['food','cafes','music','art','fitness','yoga','heritage','culture','wildlife','photography','shopping','spirituality','trekking','cricket','textiles','coffee','nightlife','books']
@@ -69,7 +70,7 @@ function CompanionCard({ companion, index, featured = false }) {
       <Link href={`/companion/${companion.id}`} className="block group relative">
         <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-100 to-purple-100 shadow-md border border-white/60 card-img-zoom ${featured ? 'aspect-[4/5]' : 'aspect-[3/4]'}`}>
           {companion.photos?.[0] ? (
-            <img src={companion.photos[0]} alt={companion.displayName} className="w-full h-full object-cover card-img transition-transform duration-700" />
+            <img src={getImageUrl(companion.photos[0])} alt={companion.displayName} className="w-full h-full object-cover card-img transition-transform duration-700" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-5xl bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100">🌸</div>
           )}

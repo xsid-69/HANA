@@ -1,37 +1,77 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Clock, Timer, IndianRupee, AlertTriangle } from 'lucide-react'
-import { getMyBookings } from '@/app/actions/bookings'
+import { Clock, Timer, AlertTriangle, Sparkles } from 'lucide-react'
+import { getMyBookings, autoCompleteBooking } from '@/app/actions/bookings'
+import { getExtensionOptions, getPendingExtension } from '@/app/actions/extensions'
 import { useBookingRealtime } from '@/hooks/useBookingRealtime'
+import { useExtensionTimer, useExtensionRealtime } from '@/hooks/useExtensionRealtime'
+import ExtensionPromptSheet from './ExtensionPromptSheet'
+import ExtensionPaymentSheet from './ExtensionPaymentSheet'
 import Link from 'next/link'
+import { getImageUrl } from '@/lib/image-url'
 
-function CountdownTimer({ startTime, durationHours }) {
+// TESTING: 24x speed — 2 hours completes in 5 real minutes. Remove for production.
+const TIME_ACCELERATION = 24
+
+function parseTimeStr(timeStr) {
+  if (!timeStr) return { hours: 0, minutes: 0 }
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i)
+  if (!match) return { hours: 0, minutes: 0 }
+  let hours = parseInt(match[1], 10)
+  const minutes = parseInt(match[2], 10)
+  const period = match[3]
+  if (period) {
+    if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12
+    if (period.toUpperCase() === 'AM' && hours === 12) hours = 0
+  }
+  return { hours, minutes }
+}
+
+function CountdownTimer({ bookingDate, endTimeStr, startTime, durationHours, onComplete }) {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0, progress: 0 })
+  const completedRef = useRef(false)
 
   useEffect(() => {
-    const totalMs = durationHours * 60 * 60 * 1000
-    const endTime = new Date(startTime).getTime() + totalMs
+    let endMs
+    if (endTimeStr && bookingDate) {
+      const { hours: eh, minutes: em } = parseTimeStr(endTimeStr)
+      const end = new Date(bookingDate)
+      end.setHours(eh, em, 0, 0)
+      endMs = end.getTime()
+    } else {
+      const totalMs = durationHours * 60 * 60 * 1000
+      endMs = new Date(startTime).getTime() + totalMs
+    }
+
+    const startMs = new Date(startTime).getTime()
+    const totalMs = endMs - startMs
 
     function update() {
-      const now = Date.now()
-      const remaining = Math.max(0, endTime - now)
-      const elapsed = totalMs - remaining
-      const progress = Math.min(100, (elapsed / totalMs) * 100)
+      const realElapsed = Date.now() - startMs
+      const virtualElapsed = realElapsed * TIME_ACCELERATION
+      const remaining = Math.max(0, totalMs - virtualElapsed)
+      const progress = Math.min(100, (virtualElapsed / totalMs) * 100)
 
       const hours = Math.floor(remaining / (1000 * 60 * 60))
       const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
       const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
 
       setTimeLeft({ hours, minutes, seconds, progress })
+
+      // Session time is up — auto-complete once.
+      if (remaining <= 0 && !completedRef.current) {
+        completedRef.current = true
+        onComplete?.()
+      }
     }
 
     update()
     const interval = setInterval(update, 1000)
     return () => clearInterval(interval)
-  }, [startTime, durationHours])
+  }, [bookingDate, endTimeStr, startTime, durationHours, onComplete])
 
   return (
     <div className="flex items-center gap-3">
@@ -76,6 +116,9 @@ function PaymentCountdown({ expiresAt }) {
 
 export default function ActiveBookingBanner() {
   const queryClient = useQueryClient()
+  const [showExtensionPrompt, setShowExtensionPrompt] = useState(false)
+  const [showExtensionPayment, setShowExtensionPayment] = useState(false)
+  const [pendingExt, setPendingExt] = useState(null)
 
   const { data: inProgressBookings = [] } = useQuery({
     queryKey: ['my-bookings', 'IN_PROGRESS'],
@@ -98,6 +141,60 @@ export default function ActiveBookingBanner() {
   const paymentBooking = awaitingPayment[0]
   const upcomingBooking = confirmedBookings[0]
 
+  const { shouldShowPrompt, dismiss: dismissPrompt } = useExtensionTimer(activeBooking)
+
+  const { data: extensionOptions } = useQuery({
+    queryKey: ['extension-options', activeBooking?.id],
+    queryFn: () => getExtensionOptions(activeBooking.id),
+    enabled: !!activeBooking && (shouldShowPrompt || showExtensionPrompt),
+  })
+
+  // Poll the pending extension so approval is detected even without realtime.
+  const { data: polledExtension } = useQuery({
+    queryKey: ['pending-extension', activeBooking?.id],
+    queryFn: () => getPendingExtension(activeBooking.id),
+    enabled: !!activeBooking,
+    refetchInterval: 5000,
+  })
+
+  const handleAutoComplete = useCallback(async () => {
+    if (!activeBooking) return
+    try {
+      await autoCompleteBooking(activeBooking.id)
+    } catch {}
+    queryClient.invalidateQueries({ queryKey: ['my-bookings'] })
+  }, [activeBooking, queryClient])
+
+  useExtensionRealtime(activeBooking?.id, useCallback((eventType, payload) => {
+    if (payload?.status === 'APPROVED') {
+      setPendingExt(payload)
+      setShowExtensionPayment(true)
+      setShowExtensionPrompt(false)
+    }
+    if (payload?.status === 'DECLINED') {
+      setShowExtensionPrompt(false)
+      setPendingExt(null)
+    }
+    if (payload?.status === 'PAID') {
+      queryClient.invalidateQueries({ queryKey: ['my-bookings'] })
+    }
+  }, [queryClient]))
+
+  useEffect(() => {
+    if (shouldShowPrompt && activeBooking && !showExtensionPayment) {
+      setShowExtensionPrompt(true)
+    }
+  }, [shouldShowPrompt, activeBooking, showExtensionPayment])
+
+  // When the companion approves, open the payment sheet (polling-driven).
+  useEffect(() => {
+    if (polledExtension?.status === 'APPROVED') {
+      setPendingExt(polledExtension)
+      setShowExtensionPayment(true)
+      setShowExtensionPrompt(false)
+    }
+  }, [polledExtension])
+
   useBookingRealtime(activeBooking?.id, useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['my-bookings'] })
   }, [queryClient]))
@@ -105,7 +202,8 @@ export default function ActiveBookingBanner() {
   if (!activeBooking && !paymentBooking && !upcomingBooking) return null
 
   return (
-    <AnimatePresence mode="wait">
+    <>
+      <AnimatePresence mode="wait">
       {activeBooking && (
         <motion.div
           key="in-progress"
@@ -132,7 +230,7 @@ export default function ActiveBookingBanner() {
                   className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-white/30"
                 >
                   {activeBooking.companion?.photos?.[0] || activeBooking.companion?.user?.image ? (
-                    <img src={activeBooking.companion?.photos?.[0] || activeBooking.companion?.user?.image} alt={activeBooking.companion?.user?.name || 'Companion'} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(activeBooking.companion?.photos?.[0] || activeBooking.companion?.user?.image)} alt={activeBooking.companion?.user?.name || 'Companion'} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-lg font-bold text-white">{(activeBooking.companion?.user?.name || 'C')[0]}</span>
                   )}
@@ -155,8 +253,11 @@ export default function ActiveBookingBanner() {
               </div>
 
               <CountdownTimer
+                bookingDate={activeBooking.date}
+                endTimeStr={activeBooking.endTime}
                 startTime={activeBooking.verifiedAt || activeBooking.updatedAt}
                 durationHours={activeBooking.durationHours}
+                onComplete={handleAutoComplete}
               />
             </div>
 
@@ -167,9 +268,14 @@ export default function ActiveBookingBanner() {
               <span className="text-xs text-white/60 flex items-center gap-1.5">
                 <Timer className="w-3.5 h-3.5" /> {activeBooking.durationHours}h session
               </span>
-              <span className="ml-auto text-xs font-bold text-white/80 flex items-center gap-1">
-                <IndianRupee className="w-3 h-3" /> {activeBooking.totalAmount?.toLocaleString('en-IN')}
-              </span>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowExtensionPrompt(true)}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-xs font-semibold hover:bg-white/30 transition-colors"
+              >
+                <Sparkles className="w-3 h-3" /> Extend
+              </motion.button>
             </div>
           </div>
         </motion.div>
@@ -198,7 +304,7 @@ export default function ActiveBookingBanner() {
                     className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-white/30"
                   >
                     {paymentBooking.companion?.photos?.[0] || paymentBooking.companion?.user?.image ? (
-                      <img src={paymentBooking.companion?.photos?.[0] || paymentBooking.companion?.user?.image} alt={paymentBooking.companion?.user?.name || 'Companion'} className="w-full h-full object-cover" />
+                      <img src={getImageUrl(paymentBooking.companion?.photos?.[0] || paymentBooking.companion?.user?.image)} alt={paymentBooking.companion?.user?.name || 'Companion'} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-lg font-bold text-white">{(paymentBooking.companion?.user?.name || 'C')[0]}</span>
                     )}
@@ -238,7 +344,7 @@ export default function ActiveBookingBanner() {
               <div className="flex items-center gap-3 flex-1">
                 <div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0 overflow-hidden ring-2 ring-white/30">
                   {upcomingBooking.companion?.photos?.[0] || upcomingBooking.companion?.user?.image ? (
-                    <img src={upcomingBooking.companion?.photos?.[0] || upcomingBooking.companion?.user?.image} alt={upcomingBooking.companion?.user?.name || 'Companion'} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(upcomingBooking.companion?.photos?.[0] || upcomingBooking.companion?.user?.image)} alt={upcomingBooking.companion?.user?.name || 'Companion'} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-lg font-bold text-white">{(upcomingBooking.companion?.user?.name || 'C')[0]}</span>
                   )}
@@ -259,6 +365,32 @@ export default function ActiveBookingBanner() {
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+
+      {showExtensionPrompt && activeBooking && (
+        <ExtensionPromptSheet
+          booking={activeBooking}
+          options={extensionOptions?.options || []}
+          onClose={() => { setShowExtensionPrompt(false); dismissPrompt() }}
+          onRequested={(ext) => {
+            setShowExtensionPrompt(false)
+            setPendingExt(ext)
+          }}
+        />
+      )}
+
+      {showExtensionPayment && pendingExt && activeBooking && (
+        <ExtensionPaymentSheet
+          extension={pendingExt}
+          booking={activeBooking}
+          onClose={() => setShowExtensionPayment(false)}
+          onPaid={() => {
+            setShowExtensionPayment(false)
+            setPendingExt(null)
+            queryClient.invalidateQueries({ queryKey: ['my-bookings'] })
+          }}
+        />
+      )}
+    </>
   )
 }

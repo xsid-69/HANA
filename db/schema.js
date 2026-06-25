@@ -1,6 +1,8 @@
 import { pgTable, text, integer, boolean, timestamp, uniqueIndex, pgEnum, real, json } from 'drizzle-orm/pg-core'
 import { createId } from './utils.js'
 
+export const extensionStatusEnum = pgEnum('ExtensionStatus', ['PENDING', 'APPROVED', 'DECLINED', 'PAID', 'EXPIRED'])
+
 export const roleEnum = pgEnum('Role', ['CLIENT', 'COMPANION', 'ADMIN'])
 export const bookingStatusEnum = pgEnum('BookingStatus', [
   'PENDING_ACCEPTANCE', 'REJECTED', 'AWAITING_PAYMENT',
@@ -11,7 +13,9 @@ export const messageTypeEnum = pgEnum('MessageType', ['TEXT', 'IMAGE', 'SYSTEM']
 export const notificationTypeEnum = pgEnum('NotificationType', [
   'NEW_MESSAGE', 'BOOKING_REQUEST', 'BOOKING_ACCEPTED', 'BOOKING_CONFIRMED',
   'BOOKING_DECLINED', 'BOOKING_CANCELLED', 'BOOKING_COMPLETED',
-  'PAYMENT_REMINDER', 'PAYMENT_EXPIRED', 'REVIEW_REMINDER', 'SYSTEM'
+  'PAYMENT_REMINDER', 'PAYMENT_EXPIRED', 'REVIEW_REMINDER', 'SYSTEM',
+  'EXTENSION_REQUESTED', 'EXTENSION_APPROVED', 'EXTENSION_DECLINED',
+  'EXTENSION_PAYMENT_REQUIRED', 'EXTENSION_COMPLETED', 'EXTENSION_SUGGESTION'
 ])
 export const verificationStatusEnum = pgEnum('VerificationStatus', ['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED'])
 
@@ -133,7 +137,7 @@ export const bookings = pgTable('bookings', {
   date: timestamp('date', { mode: 'date' }).notNull(),
   startTime: text('startTime').notNull(),
   endTime: text('endTime').notNull(),
-  durationHours: integer('durationHours').notNull(),
+  durationHours: real('durationHours').notNull(),
   activityType: text('activityType').notNull(),
   notes: text('notes'),
   hourlyRate: integer('hourlyRate').notNull(),
@@ -143,6 +147,7 @@ export const bookings = pgTable('bookings', {
   totalAmount: integer('totalAmount').notNull(),
   status: bookingStatusEnum('status').default('PENDING_ACCEPTANCE').notNull(),
   paymentStatus: paymentStatusEnum('paymentStatus').default('PENDING').notNull(),
+  requestExpiresAt: timestamp('requestExpiresAt', { mode: 'date' }),
   paymentExpiresAt: timestamp('paymentExpiresAt', { mode: 'date' }),
   acceptedAt: timestamp('acceptedAt', { mode: 'date' }),
   rejectedAt: timestamp('rejectedAt', { mode: 'date' }),
@@ -220,4 +225,18 @@ export const notifications = pgTable('notifications', {
   isRead: boolean('isRead').default(false).notNull(),
   readAt: timestamp('readAt', { mode: 'date' }),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+})
+
+export const bookingExtensions = pgTable('booking_extensions', {
+  id: text('id').primaryKey().$defaultFn(createId),
+  bookingId: text('bookingId').notNull().references(() => bookings.id),
+  requestedBy: text('requestedBy').notNull().references(() => users.id),
+  extraMinutes: integer('extraMinutes').notNull(),
+  additionalAmount: integer('additionalAmount').notNull(),
+  status: extensionStatusEnum('status').default('PENDING').notNull(),
+  approvedBy: text('approvedBy').references(() => users.id),
+  paymentStatus: paymentStatusEnum('paymentStatus').default('PENDING').notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  approvedAt: timestamp('approvedAt', { mode: 'date' }),
+  paidAt: timestamp('paidAt', { mode: 'date' }),
 })
