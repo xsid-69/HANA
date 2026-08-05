@@ -1,11 +1,12 @@
 'use client'
 
-import { Star, Heart } from 'lucide-react'
+import { Star, Heart, Sparkles } from 'lucide-react'
 import { useUIStore } from '@/store/useUIStore'
 import { motion } from 'framer-motion'
 import { getImageUrl } from '@/lib/image-url'
+import { formatINR } from '@/lib/format-currency'
 
-export default function CompanionCard({ companion, compact }) {
+export default function CompanionCard({ companion, compact, personalized = false }) {
   const openProfileModal = useUIStore(s => s.openProfileModal)
 
   return (
@@ -35,6 +36,12 @@ export default function CompanionCard({ companion, compact }) {
         {companion.isOnline && (
           <div className="absolute top-2.5 left-2.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-white shadow-sm" />
         )}
+        {personalized && (
+          <div className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-gray-950/80 px-2 py-1 text-[10px] font-semibold text-white shadow-sm">
+            <Sparkles className="h-3 w-3 text-pink-200" aria-hidden="true" />
+            For you
+          </div>
+        )}
       </div>
 
       <div className="p-3 space-y-1.5">
@@ -63,7 +70,7 @@ export default function CompanionCard({ companion, compact }) {
             ))}
           </div>
           <span className="text-xs font-semibold text-gray-900">
-            ¥{companion.hourlyRate?.toLocaleString()}/hr
+            {formatINR(companion.hourlyRate)}/hr
           </span>
         </div>
       </div>

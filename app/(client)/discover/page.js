@@ -1,127 +1,385 @@
 ﻿'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'framer-motion'
+import Link from 'next/link'
+import {
+  ArrowRight,
+  Beer,
+  Bird,
+  BookOpen,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Coffee,
+  Compass,
+  Heart,
+  Leaf,
+  MapPin,
+  Music2,
+  Palette,
+  RotateCcw,
+  Search,
+  SearchX,
+  SlidersHorizontal,
+  Star,
+  Sun,
+  Trees,
+  Waves,
+  X,
+} from 'lucide-react'
+import { useSession } from 'next-auth/react'
 import { getCompanions } from '@/app/actions/companions'
 import BottomNav from '@/components/layout/BottomNav'
 import TopNav from '@/components/layout/TopNav'
-import {
-  Star, Heart, MapPin, Search, SlidersHorizontal, X,
-  ChevronDown, Check, Sparkles, TrendingUp, Users,
-  Coffee, TreePine, Compass, ArrowRight, Filter
-} from 'lucide-react'
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
-import Link from 'next/link'
 import { useAuthStore } from '@/lib/auth-store'
-import { useSession } from 'next-auth/react'
+import { formatINR } from '@/lib/format-currency'
 import { getImageUrl } from '@/lib/image-url'
+import PersonalizedCompanionsSection from '@/components/recommendations/PersonalizedCompanionsSection'
 
-const CITIES = ['Mumbai','Delhi','Bangalore','Hyderabad','Chennai','Kolkata','Jaipur','Pune','Kochi','Varanasi','Nagpur','Amritsar','Lucknow','Ahmedabad','Coimbatore','Thiruvananthapuram']
-const INTERESTS = ['food','cafes','music','art','fitness','yoga','heritage','culture','wildlife','photography','shopping','spirituality','trekking','cricket','textiles','coffee','nightlife','books']
+const CITIES = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Jaipur', 'Pune', 'Kochi', 'Varanasi', 'Nagpur', 'Amritsar', 'Lucknow', 'Ahmedabad', 'Coimbatore', 'Thiruvananthapuram']
+const INTERESTS = ['food', 'cafes', 'music', 'art', 'fitness', 'yoga', 'heritage', 'culture', 'wildlife', 'photography', 'shopping', 'spirituality', 'trekking', 'cricket', 'textiles', 'coffee', 'nightlife', 'books']
 const SORT_OPTIONS = [
-  { value: 'rating', label: 'Top Rated' },
-  { value: 'price_asc', label: 'Price: Low to High' },
-  { value: 'price_desc', label: 'Price: High to Low' },
-  { value: 'name', label: 'Name A-Z' },
+  { value: 'random', label: 'Fresh mix' },
+  { value: 'rating', label: 'Top rated' },
+  { value: 'price_asc', label: 'Price: low to high' },
+  { value: 'price_desc', label: 'Price: high to low' },
+  { value: 'name', label: 'Name A–Z' },
 ]
-
 const PLACES = [
-  { name: 'Irani Cafe', type: 'Cafe', emoji: '☕', city: 'Pune', desc: 'Colonial-era cafe with bun maska and chai', gradient: 'from-amber-50 to-orange-50', accent: 'text-amber-600' },
-  { name: 'Toit Brewpub', type: 'Cafe', emoji: '🍺', city: 'Bangalore', desc: 'Craft beer and great food in Indiranagar', gradient: 'from-emerald-50 to-teal-50', accent: 'text-emerald-600' },
-  { name: 'Lodhi Garden', type: 'Park', emoji: '🌿', city: 'Delhi', desc: 'Historic Mughal tombs amid lush greenery', gradient: 'from-green-50 to-lime-50', accent: 'text-green-600' },
-  { name: 'Cubbon Park', type: 'Park', emoji: '🌳', city: 'Bangalore', desc: 'Green lung of the city, perfect for walks', gradient: 'from-teal-50 to-cyan-50', accent: 'text-teal-600' },
-  { name: 'Versova Beach', type: 'Beach', emoji: '🌊', city: 'Mumbai', desc: 'Quiet fishing village beach at sunset', gradient: 'from-blue-50 to-sky-50', accent: 'text-blue-600' },
-  { name: 'Cha Bar', type: 'Cafe', emoji: '🍵', city: 'Delhi', desc: 'Over 100 teas in a bookstore setting', gradient: 'from-rose-50 to-pink-50', accent: 'text-rose-600' },
-  { name: 'Sanjay Gandhi NP', type: 'Park', emoji: '🦋', city: 'Mumbai', desc: 'Leopards, caves, and forest trails', gradient: 'from-violet-50 to-purple-50', accent: 'text-violet-600' },
-  { name: 'Bylanes Cafe', type: 'Cafe', emoji: '☕', city: 'Nagpur', desc: 'Cozy cafe in the heart of the orange city', gradient: 'from-orange-50 to-amber-50', accent: 'text-orange-600' },
-  { name: 'Ambazari Lake', type: 'Park', emoji: '🦢', city: 'Nagpur', desc: 'Serene lake garden perfect for evening walks', gradient: 'from-sky-50 to-blue-50', accent: 'text-sky-600' },
-  { name: 'Marine Drive', type: 'Beach', emoji: '🌅', city: 'Mumbai', desc: 'The Queen\'s Necklace at golden hour', gradient: 'from-pink-50 to-rose-50', accent: 'text-pink-600' },
-  { name: 'Hauz Khas Village', type: 'Cafe', emoji: '🎨', city: 'Delhi', desc: 'Indie cafes, art galleries, and a medieval lake', gradient: 'from-purple-50 to-fuchsia-50', accent: 'text-purple-600' },
-  { name: 'Koramangala Social', type: 'Cafe', emoji: '🎵', city: 'Bangalore', desc: 'Live music, great food, vibrant crowd', gradient: 'from-indigo-50 to-blue-50', accent: 'text-indigo-600' },
+  { name: 'Irani Cafe', type: 'Cafe', icon: Coffee, city: 'Pune', desc: 'Colonial-era cafe with bun maska and chai' },
+  { name: 'Toit Brewpub', type: 'Cafe', icon: Beer, city: 'Bangalore', desc: 'Craft beer and great food in Indiranagar' },
+  { name: 'Lodhi Garden', type: 'Park', icon: Trees, city: 'Delhi', desc: 'Historic Mughal tombs amid lush greenery' },
+  { name: 'Cubbon Park', type: 'Park', icon: Leaf, city: 'Bangalore', desc: 'Green lung of the city, perfect for walks' },
+  { name: 'Versova Beach', type: 'Beach', icon: Waves, city: 'Mumbai', desc: 'Quiet fishing village beach at sunset' },
+  { name: 'Cha Bar', type: 'Cafe', icon: BookOpen, city: 'Delhi', desc: 'Over 100 teas in a bookstore setting' },
+  { name: 'Sanjay Gandhi NP', type: 'Park', icon: Bird, city: 'Mumbai', desc: 'Leopards, caves, and forest trails' },
+  { name: 'Bylanes Cafe', type: 'Cafe', icon: Coffee, city: 'Nagpur', desc: 'Cozy cafe in the heart of the orange city' },
+  { name: 'Ambazari Lake', type: 'Park', icon: Waves, city: 'Nagpur', desc: 'Serene lake garden perfect for evening walks' },
+  { name: 'Marine Drive', type: 'Beach', icon: Sun, city: 'Mumbai', desc: 'The Queen\'s Necklace at golden hour' },
+  { name: 'Hauz Khas Village', type: 'Cafe', icon: Palette, city: 'Delhi', desc: 'Indie cafes, art galleries, and a medieval lake' },
+  { name: 'Koramangala Social', type: 'Cafe', icon: Music2, city: 'Bangalore', desc: 'Live music, great food, vibrant crowd' },
 ]
 
-const EXPERIENCE_TAGS = [
-  { label: 'Coffee Dates', emoji: '☕', tag: 'coffee' },
-  { label: 'Food Trails', emoji: '🍛', tag: 'food' },
-  { label: 'Heritage Walks', emoji: '🏛️', tag: 'heritage' },
-  { label: 'Art & Culture', emoji: '🎨', tag: 'art' },
-  { label: 'Nature & Treks', emoji: '🌿', tag: 'trekking' },
-  { label: 'Music & Nightlife', emoji: '🎵', tag: 'music' },
-  { label: 'Yoga & Wellness', emoji: '🧘', tag: 'yoga' },
-  { label: 'Shopping', emoji: '🛍️', tag: 'shopping' },
-]
+const EASE = [0.16, 1, 0.3, 1]
+const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf6]'
 
 function useDebounce(value, delay) {
-  const [d, setD] = useState(value)
-  useEffect(() => { const t = setTimeout(() => setD(value), delay); return () => clearTimeout(t) }, [value, delay])
-  return d
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(timeout)
+  }, [value, delay])
+
+  return debouncedValue
 }
 
-function CompanionCard({ companion, index, featured = false }) {
+function CompanionCard({ companion, index, featured, compact = false }) {
   const [liked, setLiked] = useState(false)
+  const rating = companion.averageRating?.toFixed(1) ?? 'New'
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.05, 0.4), duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className={featured ? 'col-span-2 row-span-2' : ''}
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 18, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.985 }}
+      transition={{ duration: 0.38, delay: Math.min(index * 0.035, 0.22), ease: EASE, layout: { duration: 0.3 } }}
+      className="group relative h-full min-h-0 overflow-hidden rounded-[1.6rem] bg-[#f8dfe4] shadow-[0_18px_45px_-26px_rgba(115,48,66,0.65)] ring-1 ring-[#ead8d5]"
     >
-      <Link href={`/companion/${companion.id}`} className="block group relative">
-        <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-100 to-purple-100 shadow-md border border-white/60 card-img-zoom ${featured ? 'aspect-[4/5]' : 'aspect-[3/4]'}`}>
-          {companion.photos?.[0] ? (
-            <img src={getImageUrl(companion.photos[0])} alt={companion.displayName} className="w-full h-full object-cover card-img transition-transform duration-700" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-5xl bg-gradient-to-br from-pink-100 via-rose-50 to-purple-100">🌸</div>
-          )}
-
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-
-          {/* Top badges */}
-          <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/95 backdrop-blur-sm rounded-full shadow-sm">
-              <Star className="w-3 h-3 fill-amber-400 text-amber-400 stroke-0" />
-              <span className="text-[11px] font-bold text-gray-900">{companion.averageRating?.toFixed(1)}</span>
-            </div>
-            <button
-              onClick={e => { e.preventDefault(); setLiked(v => !v) }}
-              className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm transition-all duration-200 active:scale-90"
-            >
-              <Heart className={`w-4 h-4 transition-colors duration-200 ${liked ? 'fill-pink-500 text-pink-500' : 'text-gray-500'}`} />
-            </button>
+      <Link
+        href={`/companion/${companion.id}`}
+        aria-label={`View ${companion.displayName}'s profile`}
+        className={`relative block h-full w-full overflow-hidden ${focusRing}`}
+      >
+        {companion.photos?.[0] ? (
+          <img
+            src={getImageUrl(companion.photos[0])}
+            alt={`${companion.displayName} in ${companion.city}`}
+            className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.035]"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-[#f9e2e6]" aria-hidden="true">
+            <Heart className="h-12 w-12 fill-[#eaa5b5] text-[#d97891]" />
           </div>
+        )}
 
-          {/* Bottom info */}
-          <div className="absolute bottom-0 left-0 right-0 p-3.5">
-            <p className="text-white font-heading font-bold text-base leading-tight">{companion.displayName}, {companion.age}</p>
-            <div className="flex items-center gap-1 mt-0.5">
-              <MapPin className="w-3 h-3 text-pink-300 shrink-0" />
-              <p className="text-white/70 text-[11px] truncate">{companion.district ? `${companion.district}, ` : ''}{companion.city}</p>
-            </div>
-            {companion.tags?.length > 0 && (
-              <div className="flex gap-1 mt-2 flex-wrap">
-                {companion.tags.slice(0, featured ? 3 : 2).map(tag => (
-                  <span key={tag} className="px-2 py-0.5 bg-white/15 backdrop-blur-sm rounded-full text-[10px] text-white border border-white/15 capitalize">{tag}</span>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-white/85 text-xs font-semibold">₹{companion.hourlyRate?.toLocaleString('en-IN')}/hr</p>
-              {featured && (
-                <span className="px-2.5 py-1 bg-hana-gradient rounded-full text-[10px] text-white font-semibold shadow-md">Book Now →</span>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#2c171d]/95 via-[#2c171d]/18 to-transparent" />
+        <div className="absolute left-3 top-3 flex min-h-9 items-center gap-1.5 rounded-full bg-[#fffaf6]/95 px-3 text-xs font-bold text-[#38242a] shadow-[0_8px_24px_-12px_rgba(59,24,34,0.7)] backdrop-blur-md">
+          <Star className="h-3.5 w-3.5 fill-[#d78c3d] text-[#d78c3d]" aria-hidden="true" />
+          <span className="tabular-nums">{rating}</span>
+        </div>
+
+        <div className={`absolute inset-x-0 bottom-0 ${featured ? 'p-4 sm:p-6' : compact ? 'p-3' : 'p-4'}`}>
+          <div className="flex items-end justify-between gap-2">
+            <div className="min-w-0">
+              <h2 className={`truncate font-heading font-bold tracking-[-0.02em] text-white ${featured ? 'text-lg sm:text-2xl' : compact ? 'text-sm sm:text-base' : 'text-base'}`}>
+                {companion.displayName}{companion.age ? `, ${companion.age}` : ''}
+              </h2>
+              {!compact && (
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-white/75">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#f4a9b8]" aria-hidden="true" />
+                  <span className="truncate">{companion.district ? `${companion.district}, ` : ''}{companion.city}</span>
+                </p>
               )}
             </div>
+            <span className="shrink-0 text-right text-xs font-bold tabular-nums text-white sm:text-sm">
+              {formatINR(companion.hourlyRate)}<span className="text-[9px] font-medium text-white/65 sm:text-[10px]">/hr</span>
+            </span>
           </div>
+
+          {!compact && companion.tags?.length > 0 && (
+            <div className="mb-3 mt-2 hidden flex-wrap gap-1.5 sm:flex">
+              {companion.tags.slice(0, featured ? 4 : 2).map((tag) => (
+                <span key={tag} className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] font-medium capitalize text-white/90 backdrop-blur-sm">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {!compact && (
+            <div className="mt-2 flex min-h-10 items-center justify-between border-t border-white/15 pt-2.5 text-xs font-semibold text-white">
+              <span>View profile</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e8567f] transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden="true">
+                <ArrowRight className="h-4 w-4" />
+              </span>
+            </div>
+          )}
         </div>
       </Link>
-    </motion.div>
+
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setLiked((value) => !value)}
+        aria-label={liked ? `Remove ${companion.displayName} from favourites` : `Add ${companion.displayName} to favourites`}
+        aria-pressed={liked}
+        className={`absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-[#fffaf6]/95 shadow-[0_8px_24px_-12px_rgba(59,24,34,0.7)] backdrop-blur-md transition-colors ${focusRing}`}
+      >
+        <Heart className={`h-5 w-5 transition-colors ${liked ? 'fill-[#df4f78] text-[#df4f78]' : 'text-[#765f66]'}`} aria-hidden="true" />
+      </motion.button>
+    </motion.article>
+  )
+}
+
+function CompanionRailCard({ companion, index }) {
+  const [liked, setLiked] = useState(false)
+  const rating = companion.averageRating?.toFixed(1) ?? 'New'
+
+  return (
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: Math.min(index * 0.035, 0.2), ease: EASE }}
+      whileHover={{ y: -3 }}
+      className="w-[54vw] max-w-[12rem] shrink-0 snap-start sm:w-44 lg:w-40 xl:w-44"
+    >
+      <div className="group relative aspect-[3/4] overflow-hidden rounded-[1.25rem] bg-[#f4e4e5] ring-1 ring-[#ead8d5]">
+        <Link href={`/companion/${companion.id}`} aria-label={`View ${companion.displayName}'s profile`} className={`block size-full ${focusRing}`}>
+          {companion.photos?.[0] ? (
+            <img src={getImageUrl(companion.photos[0])} alt={`${companion.displayName} in ${companion.city}`} className="size-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]" />
+          ) : (
+            <span className="flex size-full items-center justify-center bg-[#f9e2e6]" aria-hidden="true"><Heart className="h-10 w-10 fill-[#eaa5b5] text-[#d97891]" /></span>
+          )}
+        </Link>
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setLiked((value) => !value)}
+          aria-label={liked ? `Remove ${companion.displayName} from favourites` : `Add ${companion.displayName} to favourites`}
+          aria-pressed={liked}
+          className={`absolute right-2.5 top-2.5 flex size-11 items-center justify-center rounded-full bg-white/92 text-[#5f4d53] shadow-[0_8px_22px_-12px_rgba(49,26,33,0.7)] backdrop-blur-md ${focusRing}`}
+        >
+          <Heart className={`h-5 w-5 ${liked ? 'fill-[#df4f78] text-[#df4f78]' : 'text-[#5f4d53]'}`} aria-hidden="true" />
+        </motion.button>
+      </div>
+
+      <Link href={`/companion/${companion.id}`} className={`mt-3 block rounded-lg text-[#352329] ${focusRing}`}>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="truncate text-sm font-semibold tracking-[-0.01em]">{companion.displayName}{companion.age ? `, ${companion.age}` : ''}</h3>
+          <span className="flex shrink-0 items-center gap-1 text-xs font-medium tabular-nums"><Star className="h-3.5 w-3.5 fill-[#352329] text-[#352329]" aria-hidden="true" />{rating}</span>
+        </div>
+        <p className="mt-1 truncate text-xs text-[#806970]">{companion.district ? `${companion.district}, ` : ''}{companion.city}</p>
+        <p className="mt-1.5 text-sm font-semibold tabular-nums text-[#352329]">{formatINR(companion.hourlyRate)} <span className="font-normal text-[#806970]">per hour</span></p>
+      </Link>
+    </motion.article>
+  )
+}
+
+function FeaturedCompanionMosaic({ companions }) {
+  const [lead, ...supporting] = companions.slice(0, 5)
+  if (!lead) return null
+
+  return (
+    <section aria-labelledby="featured-companions-heading">
+      <div className="mb-3 flex items-center gap-1.5">
+        <h2 id="featured-companions-heading" className="font-heading text-lg font-bold tracking-[-0.025em] text-[#38232a] sm:text-xl">Featured companions</h2>
+        <ChevronRight className="h-4 w-4 text-[#9e7a84]" aria-hidden="true" />
+      </div>
+      <div className={`grid gap-3 ${supporting.length ? 'md:grid-cols-2' : ''}`}>
+        <div className="aspect-[3/4] min-w-0"><CompanionCard companion={lead} index={0} featured /></div>
+        {supporting.length > 0 && (
+          <div className="grid min-w-0 grid-cols-2 gap-3">
+            {supporting.map((companion, index) => (
+              <div key={companion.id} className="aspect-[3/4] min-w-0"><CompanionCard companion={companion} index={index + 1} compact /></div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function CompanionCollection({ collection }) {
+  const railRef = useRef(null)
+
+  const moveRail = (direction) => {
+    const rail = railRef.current
+    if (!rail) return
+    rail.scrollBy({ left: direction * Math.max(rail.clientWidth * 0.82, 320), behavior: 'smooth' })
+  }
+
+  return (
+    <section aria-labelledby={`companions-${collection.id}`}>
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <h2 id={`companions-${collection.id}`} className="truncate font-heading text-lg font-bold tracking-[-0.025em] text-[#38232a] sm:text-xl">{collection.title}</h2>
+          <ChevronRight className="h-4 w-4 shrink-0 text-[#9e7a84]" aria-hidden="true" />
+        </div>
+        <div className="hidden items-center gap-2 sm:flex">
+          <button type="button" onClick={() => moveRail(-1)} aria-label={`Show previous ${collection.title.toLowerCase()}`} className={`flex size-11 items-center justify-center rounded-full border border-[#e4d3d0] bg-[#fffdf9] text-[#5f4d53] shadow-sm transition-colors hover:border-[#d7a7b3] hover:bg-[#fff5f2] ${focusRing}`}>
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button type="button" onClick={() => moveRail(1)} aria-label={`Show more ${collection.title.toLowerCase()}`} className={`flex size-11 items-center justify-center rounded-full border border-[#e4d3d0] bg-[#fffdf9] text-[#5f4d53] shadow-sm transition-colors hover:border-[#d7a7b3] hover:bg-[#fff5f2] ${focusRing}`}>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      <div ref={railRef} className="-mx-4 flex snap-x snap-proximity gap-3.5 overflow-x-auto scroll-smooth px-4 pb-3 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {collection.items.map((companion, index) => <CompanionRailCard key={companion.id} companion={companion} index={index} />)}
+      </div>
+    </section>
+  )
+}
+
+function CompanionResults({ companions, featuredCompanions = [] }) {
+  const featured = (featuredCompanions.length ? featuredCompanions : [...companions].sort((a, b) => Number(b.hourlyRate) - Number(a.hourlyRate))).slice(0, 5)
+  const rankingPool = companions
+  const ratingOf = (companion) => Number(companion.averageRating) || 0
+  const bookingsOf = (companion) => Math.max(Number(companion.totalBookings) || 0, Number(companion.completedBookings) || 0, Number(companion._count?.bookings) || 0)
+  const reviewsOf = (companion) => Math.max(Number(companion.totalReviews) || 0, Number(companion._count?.reviews) || 0)
+  const nameOf = (companion) => companion.displayName || ''
+  const byRatingThenName = (a, b) => ratingOf(b) - ratingOf(a) || nameOf(a).localeCompare(nameOf(b))
+  const takeSeven = (compare) => [...rankingPool].sort(compare).slice(0, 7)
+
+  const collections = [
+    {
+      id: 'top-rated',
+      title: 'Top rated companions',
+      items: takeSeven(byRatingThenName),
+    },
+    {
+      id: 'most-booked',
+      title: 'Most booked this season',
+      items: takeSeven((a, b) => bookingsOf(b) - bookingsOf(a) || byRatingThenName(a, b)),
+    },
+    {
+      id: 'best-value',
+      title: 'Best value experiences',
+      items: takeSeven((a, b) => Number(a.hourlyRate) - Number(b.hourlyRate) || byRatingThenName(a, b)),
+    },
+    {
+      id: 'most-reviewed',
+      title: 'Community favourites',
+      items: takeSeven((a, b) => reviewsOf(b) - reviewsOf(a) || byRatingThenName(a, b)),
+    },
+    {
+      id: 'new-on-hana',
+      title: 'New on Hana',
+      items: takeSeven((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || byRatingThenName(a, b)),
+    },
+  ]
+
+  return (
+    <div className="space-y-9">
+      <FeaturedCompanionMosaic companions={featured} />
+      {collections.map((collection) => <CompanionCollection key={collection.id} collection={collection} />)}
+    </div>
+  )
+}
+
+function LoadingMosaic() {
+  return (
+    <div className="space-y-9" aria-label="Loading companions">
+      <div>
+        <div className="mb-3 h-6 w-44 rounded-lg skeleton" />
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="aspect-[3/4] rounded-[1.6rem] skeleton" />
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, index) => <div key={index} className="aspect-[3/4] rounded-[1.4rem] skeleton" />)}
+          </div>
+        </div>
+      </div>
+      <div>
+        <div className="mb-3 h-6 w-52 rounded-lg skeleton" />
+        <div className="flex gap-3.5 overflow-hidden">
+          {Array.from({ length: 7 }).map((_, index) => <div key={index} className="aspect-[3/5] w-40 shrink-0 rounded-[1.25rem] skeleton sm:w-44 lg:w-40 xl:w-44" />)}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PlaceIcon({ icon: Icon }) {
+  return <Icon className="h-6 w-6" strokeWidth={1.8} aria-hidden="true" />
+}
+
+function PlacesGrid() {
+  return (
+    <motion.section
+      key="places"
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.3, ease: EASE }}
+      aria-label="Places to explore"
+      className="grid grid-cols-1 gap-px overflow-hidden rounded-[1.75rem] bg-[#e8d4d1] ring-1 ring-[#e8d4d1] sm:grid-cols-2 lg:grid-cols-3"
+    >
+      {PLACES.map((place, index) => (
+        <motion.article
+          layout
+          key={place.name}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: index * 0.025, ease: EASE }}
+          className={`group relative min-h-48 overflow-hidden p-5 transition-colors duration-300 hover:bg-[#f9e7e8] sm:p-6 ${index % 3 === 1 ? 'bg-[#fff8f2]' : 'bg-[#fffdf9]'}`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f5d9df] text-[#ad4563] transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-105">
+              <PlaceIcon icon={place.icon} />
+            </span>
+            <span className="rounded-full border border-[#ead8d5] bg-white/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#9e3e5a]">{place.city}</span>
+          </div>
+          <div className="mt-8">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#b44968]">{place.type} · {place.city}</p>
+            <h2 className="mt-2 font-heading text-xl font-bold tracking-[-0.02em] text-[#352329]">{place.name}</h2>
+            <p className="mt-2 max-w-[34ch] text-sm leading-6 text-[#806970]">{place.desc}</p>
+          </div>
+        </motion.article>
+      ))}
+    </motion.section>
   )
 }
 
 function DiscoverInner() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const { data: session } = useSession()
   const { user: jwtUser } = useAuthStore()
   const user = jwtUser || session?.user
@@ -130,17 +388,17 @@ function DiscoverInner() {
   const [city, setCity] = useState(searchParams.get('city') || '')
   const [district, setDistrict] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
-  const [sortBy, setSortBy] = useState('rating')
+  const [sortBy, setSortBy] = useState('random')
   const [showFilters, setShowFilters] = useState(false)
   const [showSort, setShowSort] = useState(false)
   const [activeSection, setActiveSection] = useState('all')
 
   const debouncedSearch = useDebounce(search, 300)
   const userCity = user?.city || ''
+  const userTags = user?.tags || []
+  const isSearching = Boolean(debouncedSearch || city || district || selectedTags.length)
 
-  const isSearching = !!(debouncedSearch || city || district || selectedTags.length)
-
-  const { data: allCompanions, isLoading } = useQuery({
+  const allQuery = useQuery({
     queryKey: ['companions', debouncedSearch, city, district, selectedTags, sortBy],
     queryFn: () => getCompanions({
       search: debouncedSearch || undefined,
@@ -151,235 +409,346 @@ function DiscoverInner() {
     }),
   })
 
-  const { data: cityCompanions } = useQuery({
+  const featuredQuery = useQuery({
+    queryKey: ['companions', 'featured-highest-rate'],
+    queryFn: () => getCompanions({ sortBy: 'price_desc', limit: 5 }),
+    staleTime: 60_000,
+  })
+
+  const cityQuery = useQuery({
     queryKey: ['companions', 'city', userCity],
     queryFn: () => getCompanions({ city: userCity, sortBy: 'rating' }),
-    enabled: !!userCity && !isSearching,
+    enabled: Boolean(userCity) && !isSearching,
   })
 
-  const { data: interestCompanions } = useQuery({
-    queryKey: ['companions', 'interests', user?.tags],
-    queryFn: () => getCompanions({ tags: user?.tags || [], sortBy: 'rating' }),
-    enabled: !!(user?.tags?.length) && !isSearching,
+  const interestQuery = useQuery({
+    queryKey: ['companions', 'interests', userTags],
+    queryFn: () => getCompanions({ tags: userTags, sortBy: 'rating' }),
+    enabled: Boolean(userTags.length) && !isSearching,
   })
 
-  const toggleTag = (tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
-  const clearAll = () => { setSearch(''); setCity(''); setDistrict(''); setSelectedTags([]); setSortBy('rating') }
-  const hasActiveFilters = city || district || selectedTags.length > 0 || search
-  const activeSort = SORT_OPTIONS.find(o => o.value === sortBy)
-
-  const SECTIONS = [
-    { id: 'all', label: 'All' },
-    { id: 'city', label: userCity ? `In ${userCity}` : 'In Your City' },
-    { id: 'interests', label: 'Your Interests' },
+  const sections = [
+    { id: 'all', label: 'All companions' },
+    { id: 'city', label: userCity ? `In ${userCity}` : 'In your city' },
+    { id: 'interests', label: 'Your interests' },
     { id: 'places', label: 'Places' },
   ]
 
-  const displayCompanions = isSearching ? allCompanions :
-    activeSection === 'city' ? cityCompanions :
-    activeSection === 'interests' ? interestCompanions :
-    allCompanions
+  const selectedQuery = isSearching || activeSection === 'all'
+    ? allQuery
+    : activeSection === 'city'
+      ? cityQuery
+      : interestQuery
+  const displayCompanions = selectedQuery.data ?? []
+  const displayLoading = activeSection === 'places' && !isSearching ? false : selectedQuery.isLoading
+  const displayError = activeSection === 'places' && !isSearching ? null : selectedQuery.error
+  const resultCount = activeSection === 'places' && !isSearching
+    ? PLACES.length
+    : displayCompanions?.length ?? 0
+  const activeSort = SORT_OPTIONS.find((option) => option.value === sortBy)
+  const hasActiveFilters = Boolean(city || district || selectedTags.length || search)
+
+  const toggleTag = (tag) => {
+    setSelectedTags((current) => current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag])
+  }
+
+  const handleSearch = (value) => {
+    setSearch(value)
+    if (value) setActiveSection('all')
+  }
+
+  const clearAll = () => {
+    setSearch('')
+    setCity('')
+    setDistrict('')
+    setSelectedTags([])
+    setSortBy('random')
+    setActiveSection('all')
+  }
 
   return (
-    <div className="min-h-screen relative">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[5%] right-[-8%] w-[500px] h-[500px] bg-pink-400/10 rounded-full blur-[100px] animate-pulse-soft" />
-        <div className="absolute bottom-[15%] left-[-8%] w-[450px] h-[450px] bg-purple-200/10 rounded-full blur-[100px] animate-float-slow" />
-      </div>
-
+    <div className="min-h-screen bg-[#fffaf6] text-[#352329]">
       <TopNav />
 
-      <div className="max-w-7xl mx-auto md:px-6 md:py-8 relative z-10">
-
-        {/* Header */}
-        <header className="px-5 pt-14 pb-3 md:pt-0 md:px-0 md:pb-0 md:mb-5">
-          <div className="flex items-center justify-between">
+      <main className="mx-auto max-w-7xl px-4 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 md:pt-8">
+        <motion.header
+          layout
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: EASE }}
+          className="relative overflow-hidden rounded-[1.8rem] border border-[#ead8d5] bg-[#f8e7e7] p-5 shadow-[0_24px_70px_-46px_rgba(126,54,73,0.65)] sm:p-7"
+        >
+          <div className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full border-[28px] border-[#f3cbd2]/70" aria-hidden="true" />
+          <div className="relative grid items-end gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(24rem,1.15fr)]">
             <div>
-              <h1 className="font-heading text-2xl md:text-3xl font-bold gradient-text-blush">Discover People</h1>
-              <p className="text-xs md:text-sm text-[var(--hana-muted)] mt-0.5">
-                {isLoading ? 'Searching...' : `${displayCompanions?.length ?? 0} companions found`}
+              <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#ad4563]">
+                <Compass className="h-4 w-4" aria-hidden="true" />
+                Find your kind of company
+              </div>
+              <h1 className="max-w-xl font-heading text-3xl font-bold leading-[1.05] tracking-[-0.04em] text-[#38232a] sm:text-4xl">
+                Discover people, then make a plan.
+              </h1>
+              <p className="mt-3 text-sm text-[#806970]" aria-live="polite">
+                {displayLoading ? 'Finding companions…' : `${resultCount} ${activeSection === 'places' && !isSearching ? 'places to explore' : 'companions found'}`}
               </p>
             </div>
-          </div>
-        </header>
 
-        {/* Search bar */}
-        <div className="px-5 md:px-0 mt-4 md:mt-0 mb-3">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--hana-muted)]" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, city, area, or interest..."
-              className="w-full pl-11 pr-11 py-3.5 bg-white border border-[var(--hana-subtle)]/50 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/25 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] shadow-sm transition-all"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--hana-muted)] hover:text-[var(--hana-ash)] transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Section tabs — only when not searching */}
-        {!isSearching && (
-          <div className="px-5 md:px-0 flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
-            {SECTIONS.map(s => (
-              <button key={s.id} onClick={() => setActiveSection(s.id)}
-                className={`px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-250 btn-press ${
-                  activeSection === s.id
-                    ? 'bg-hana-gradient text-white shadow-md shadow-pink-500/20'
-                    : 'bg-white border border-[var(--hana-subtle)]/50 text-[var(--hana-ash)] hover:border-pink-300'
-                }`}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Filter + Sort bar */}
-        <div className="px-5 md:px-0 flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
-          <button onClick={() => setShowFilters(v => !v)}
-            className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-250 btn-press shrink-0 ${
-              showFilters || hasActiveFilters
-                ? 'bg-hana-gradient text-white shadow-md shadow-pink-500/20'
-                : 'bg-white border border-[var(--hana-subtle)]/50 text-[var(--hana-ash)] hover:border-pink-300'
-            }`}>
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            Filters
-            {(selectedTags.length > 0 || city || district) && (
-              <span className="bg-white/30 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                {[city ? 1 : 0, district ? 1 : 0, selectedTags.length].reduce((a, b) => a + b, 0)}
-              </span>
-            )}
-          </button>
-
-          <div className="relative shrink-0">
-            <button onClick={() => setShowSort(v => !v)}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap bg-white border border-[var(--hana-subtle)]/50 text-[var(--hana-ash)] hover:border-pink-300 transition-all btn-press">
-              <span>{activeSort?.label}</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showSort ? 'rotate-180' : ''}`} />
-            </button>
-            <AnimatePresence>
-              {showSort && (
-                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute top-full mt-2 left-0 bg-white rounded-2xl shadow-xl border border-[var(--hana-subtle)]/30 overflow-hidden z-50 min-w-[180px]">
-                  {SORT_OPTIONS.map(opt => (
-                    <button key={opt.value} onClick={() => { setSortBy(opt.value); setShowSort(false) }}
-                      className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-[var(--hana-ivory)] ${sortBy === opt.value ? 'text-pink-600 font-semibold bg-pink-50/50' : 'text-[var(--hana-ash)]'}`}>
-                      {opt.label}
-                      {sortBy === opt.value && <Check className="w-3.5 h-3.5 text-pink-500" />}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {city && (
-            <button onClick={() => setCity('')} className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-xs font-medium bg-pink-100 text-pink-700 border border-pink-200 whitespace-nowrap shrink-0 btn-press">
-              {city} <X className="w-3 h-3" />
-            </button>
-          )}
-          {selectedTags.map(tag => (
-            <button key={tag} onClick={() => toggleTag(tag)} className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap shrink-0 btn-press">
-              {tag} <X className="w-3 h-3" />
-            </button>
-          ))}
-          {hasActiveFilters && (
-            <button onClick={clearAll} className="text-xs text-[var(--hana-muted)] hover:text-red-500 whitespace-nowrap shrink-0 transition-colors px-2">
-              Clear all
-            </button>
-          )}
-        </div>
-
-        {/* Filter Panel */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }} className="overflow-hidden px-5 md:px-0 mb-4">
-              <div className="bg-white rounded-2xl border border-[var(--hana-subtle)]/30 shadow-sm p-5 space-y-5">
-                <div>
-                  <p className="text-xs font-bold text-[var(--hana-blush-dark)] uppercase tracking-widest mb-2.5">City</p>
-                  <div className="flex flex-wrap gap-2">
-                    {CITIES.map(c => (
-                      <button key={c} onClick={() => setCity(city === c ? '' : c)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 btn-press ${
-                          city === c ? 'bg-hana-gradient text-white shadow-md shadow-pink-500/20' : 'bg-[var(--hana-ivory)] text-[var(--hana-ash)] border border-[var(--hana-subtle)]/40 hover:border-pink-300'
-                        }`}>{c}</button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-[var(--hana-blush-dark)] uppercase tracking-widest mb-2.5">Area / District</p>
-                  <input type="text" value={district} onChange={e => setDistrict(e.target.value)}
-                    placeholder="e.g. Bandra, Koramangala, Civil Lines..."
-                    className="w-full px-4 py-2.5 bg-[var(--hana-ivory)] border border-[var(--hana-subtle)]/40 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/20 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] transition-all" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-[var(--hana-blush-dark)] uppercase tracking-widest mb-2.5">Interests</p>
-                  <div className="flex flex-wrap gap-2">
-                    {INTERESTS.map(tag => (
-                      <button key={tag} onClick={() => toggleTag(tag)}
-                        className={`px-3.5 py-1.5 rounded-full text-xs font-medium capitalize transition-all duration-200 btn-press ${
-                          selectedTags.includes(tag) ? 'bg-hana-gradient text-white shadow-md shadow-pink-500/20' : 'bg-[var(--hana-ivory)] text-[var(--hana-ash)] border border-[var(--hana-subtle)]/40 hover:border-pink-300'
-                        }`}>{tag}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-1">
-                  <button onClick={clearAll} className="px-4 py-2 text-sm text-[var(--hana-muted)] hover:text-red-500 transition-colors">Clear all</button>
-                  <button onClick={() => setShowFilters(false)} className="px-5 py-2 bg-hana-gradient text-white rounded-xl text-sm font-semibold shadow-md shadow-pink-500/20 btn-press">Apply</button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Places section */}
-        {!isSearching && activeSection === 'places' && (
-          <div className="px-5 md:px-0 mb-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {PLACES.map(place => (
-                <div key={place.name} className="bg-white rounded-2xl p-4 border border-[var(--hana-subtle)]/30 shadow-sm hover-card">
-                  <div className="text-2xl mb-2">{place.emoji}</div>
-                  <div className="text-[10px] font-bold text-[var(--hana-blush-dark)] uppercase tracking-wider mb-1">{place.type} · {place.city}</div>
-                  <h3 className="font-semibold text-[var(--hana-charcoal)] text-sm leading-tight">{place.name}</h3>
-                  <p className="text-[var(--hana-muted)] text-xs mt-1 leading-relaxed">{place.desc}</p>
-                </div>
-              ))}
+            <div className="relative">
+              <label htmlFor="discover-search" className="sr-only">Search companions</label>
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#b0526d]" aria-hidden="true" />
+              <input
+                id="discover-search"
+                type="search"
+                value={search}
+                onChange={(event) => handleSearch(event.target.value)}
+                placeholder="Search a name, city, area, or interest"
+                className={`min-h-14 w-full rounded-2xl border border-[#dfc5c4] bg-[#fffdf9] pl-12 pr-14 text-sm text-[#352329] shadow-[0_12px_30px_-24px_rgba(105,40,58,0.7)] placeholder:text-[#9c858a] transition duration-200 hover:border-[#d99cad] ${focusRing}`}
+              />
+              <AnimatePresence>
+                {search && (
+                  <motion.button
+                    type="button"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    onClick={() => handleSearch('')}
+                    aria-label="Clear search"
+                    className={`absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl text-[#806970] transition-colors hover:bg-[#f8e7e7] hover:text-[#a73e5d] ${focusRing}`}
+                  >
+                    <X className="h-5 w-5" aria-hidden="true" />
+                  </motion.button>
+                )}
+              </AnimatePresence>
             </div>
           </div>
+        </motion.header>
+
+        {!isSearching && activeSection === 'all' && (
+          <PersonalizedCompanionsSection userId={user?.id} />
         )}
 
-        {/* Companion grid */}
-        {activeSection !== 'places' && (
-          <div className="px-5 md:px-0 pb-28 md:pb-8">
-            {isLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                {Array.from({ length: 8 }).map((_, i) => <div key={i} className="aspect-[3/4] skeleton rounded-2xl" />)}
-              </div>
-            ) : displayCompanions?.length === 0 ? (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="text-5xl mb-4">🔍</div>
-                <h3 className="font-heading text-lg font-bold text-[var(--hana-charcoal)] mb-2">No companions found</h3>
-                <p className="text-[var(--hana-muted)] text-sm max-w-xs">Try adjusting your search or filters.</p>
-                <button onClick={clearAll} className="mt-5 px-6 py-2.5 bg-hana-gradient text-white rounded-full text-sm font-semibold shadow-md shadow-pink-500/20 btn-press">Clear Filters</button>
-              </motion.div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                {displayCompanions?.map((companion, i) => (
-                  <CompanionCard key={companion.id} companion={companion} index={i} />
-                ))}
-              </div>
+        <section className="relative z-30 mt-5" aria-label="Discovery controls">
+          <nav className="flex gap-2 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Discovery sections">
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => setActiveSection(section.id)}
+                aria-pressed={activeSection === section.id}
+                className={`relative min-h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors duration-200 ${focusRing} ${activeSection === section.id ? 'text-white' : 'border border-[#e6d5d2] bg-[#fffdf9] text-[#755f65] hover:border-[#d99cad] hover:text-[#9e3e5a]'}`}
+              >
+                {activeSection === section.id && (
+                  <motion.span layoutId="active-discovery-section" className="absolute inset-0 rounded-full bg-[#c94f72] shadow-[0_10px_24px_-14px_rgba(177,51,87,0.9)]" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />
+                )}
+                <span className="relative">{section.label}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFilters((value) => !value)}
+              aria-expanded={showFilters}
+              className={`flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors duration-200 ${focusRing} ${showFilters || hasActiveFilters ? 'bg-[#3f2930] text-white' : 'border border-[#e6d5d2] bg-[#fffdf9] text-[#755f65] hover:border-[#d99cad]'}`}
+            >
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              Filters
+              {(selectedTags.length > 0 || city || district) && (
+                <span className="flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#f3b9c6] px-1.5 text-[10px] font-bold text-[#572c38]">
+                  {(city ? 1 : 0) + (district ? 1 : 0) + selectedTags.length}
+                </span>
+              )}
+            </button>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSort((value) => !value)}
+                aria-expanded={showSort}
+                className={`flex min-h-11 items-center gap-2 rounded-full border border-[#e6d5d2] bg-[#fffdf9] px-4 text-sm font-semibold text-[#755f65] transition-colors hover:border-[#d99cad] ${focusRing}`}
+              >
+                {activeSort?.label}
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showSort ? 'rotate-180' : ''}`} aria-hidden="true" />
+              </button>
+
+              <AnimatePresence>
+                {showSort && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: EASE }}
+                    className="absolute left-0 top-[calc(100%+0.5rem)] z-50 min-w-56 overflow-hidden rounded-2xl border border-[#e8d5d3] bg-[#fffdf9] p-1.5 shadow-[0_22px_55px_-24px_rgba(83,34,48,0.65)] sm:left-auto sm:right-0"
+                  >
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => { setSortBy(option.value); setShowSort(false) }}
+                        className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-left text-sm transition-colors ${focusRing} ${sortBy === option.value ? 'bg-[#f8e3e7] font-semibold text-[#a53e5c]' : 'text-[#755f65] hover:bg-[#fff3ef]'}`}
+                      >
+                        {option.label}
+                        {sortBy === option.value && <Check className="h-4 w-4 text-[#c94f72]" aria-hidden="true" />}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <AnimatePresence mode="popLayout">
+              {city && (
+                <motion.button layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} type="button" onClick={() => setCity('')} className={`flex min-h-11 items-center gap-1.5 rounded-full bg-[#f8e3e7] px-3 text-xs font-semibold text-[#9e3e5a] ${focusRing}`}>
+                  {city}<X className="h-3.5 w-3.5" aria-hidden="true" />
+                </motion.button>
+              )}
+              {selectedTags.map((tag) => (
+                <motion.button layout key={tag} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} type="button" onClick={() => toggleTag(tag)} className={`flex min-h-11 items-center gap-1.5 rounded-full bg-[#f4eadb] px-3 text-xs font-semibold capitalize text-[#825f36] ${focusRing}`}>
+                  {tag}<X className="h-3.5 w-3.5" aria-hidden="true" />
+                </motion.button>
+              ))}
+            </AnimatePresence>
+
+            {hasActiveFilters && (
+              <button type="button" onClick={clearAll} className={`min-h-11 px-2 text-xs font-semibold text-[#8d7379] transition-colors hover:text-[#b13f60] ${focusRing}`}>
+                Clear all
+              </button>
             )}
           </div>
-        )}
-      </div>
 
-      {showSort && <div className="fixed inset-0 z-40" onClick={() => setShowSort(false)} />}
+          <AnimatePresence initial={false}>
+            {showFilters && (
+              <motion.div
+                layout
+                initial={{ opacity: 0, height: 0, y: -8 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -8 }}
+                transition={{ duration: 0.28, ease: EASE }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3 rounded-[1.6rem] border border-[#ead8d5] bg-[#fffdf9] p-5 shadow-[0_20px_50px_-38px_rgba(91,42,54,0.55)] sm:p-6">
+                  <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                    <fieldset>
+                      <legend className="mb-3 text-xs font-bold tracking-[0.08em] text-[#9e3e5a]">Choose a city</legend>
+                      <div className="flex flex-wrap gap-2">
+                        {CITIES.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setCity(city === option ? '' : option)}
+                            aria-pressed={city === option}
+                            className={`min-h-11 rounded-full px-3.5 text-xs font-semibold transition-colors ${focusRing} ${city === option ? 'bg-[#c94f72] text-white' : 'bg-[#fff5f0] text-[#755f65] ring-1 ring-[#ebdbd5] hover:ring-[#d99cad]'}`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+
+                    <div>
+                      <label htmlFor="discover-district" className="mb-3 block text-xs font-bold tracking-[0.08em] text-[#9e3e5a]">Area or district</label>
+                      <input
+                        id="discover-district"
+                        type="text"
+                        value={district}
+                        onChange={(event) => setDistrict(event.target.value)}
+                        placeholder="Bandra, Koramangala, Civil Lines…"
+                        className={`min-h-12 w-full rounded-xl border border-[#e7d5d1] bg-[#fff8f2] px-4 text-sm text-[#352329] placeholder:text-[#9c858a] transition-colors hover:border-[#d99cad] ${focusRing}`}
+                      />
+                    </div>
+                  </div>
+
+                  <fieldset className="mt-6 border-t border-[#eee0dc] pt-5">
+                    <legend className="mb-3 text-xs font-bold tracking-[0.08em] text-[#9e3e5a]">Add interests</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {INTERESTS.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          aria-pressed={selectedTags.includes(tag)}
+                          className={`min-h-11 rounded-full px-3.5 text-xs font-semibold capitalize transition-colors ${focusRing} ${selectedTags.includes(tag) ? 'bg-[#3f2930] text-white' : 'bg-[#fff5f0] text-[#755f65] ring-1 ring-[#ebdbd5] hover:ring-[#d99cad]'}`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <div className="mt-6 flex justify-end gap-2 border-t border-[#eee0dc] pt-4">
+                    <button type="button" onClick={clearAll} className={`min-h-11 rounded-xl px-4 text-sm font-semibold text-[#806970] transition-colors hover:bg-[#fff3ef] hover:text-[#ad4563] ${focusRing}`}>Clear all</button>
+                    <button type="button" onClick={() => setShowFilters(false)} className={`min-h-11 rounded-xl bg-[#c94f72] px-5 text-sm font-semibold text-white shadow-[0_12px_28px_-16px_rgba(177,51,87,0.9)] transition-colors hover:bg-[#b94465] ${focusRing}`}>Show results</button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+
+        <section className="mt-6" aria-live="polite" aria-busy={displayLoading}>
+          <AnimatePresence mode="wait" initial={false}>
+            {activeSection === 'places' && !isSearching ? (
+              <PlacesGrid />
+            ) : displayLoading ? (
+              <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <LoadingMosaic />
+              </motion.div>
+            ) : displayError ? (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="rounded-[1.75rem] border border-[#e8d4d1] bg-[#fff3ef] px-6 py-14 text-center"
+              >
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#f6d9df] text-[#ad4563]" aria-hidden="true"><RotateCcw className="h-5 w-5" /></div>
+                <h2 className="mt-4 font-heading text-xl font-bold text-[#38232a]">We couldn’t load companions</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#806970]">{displayError.message || 'The connection failed. Try the search again.'}</p>
+                <button type="button" onClick={() => selectedQuery.refetch()} className={`mt-5 min-h-11 rounded-full bg-[#c94f72] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#b94465] ${focusRing}`}>Try again</button>
+              </motion.div>
+            ) : displayCompanions?.length === 0 ? (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="rounded-[1.75rem] border border-[#ead8d5] bg-[#fffdf9] px-6 py-16 text-center"
+              >
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#f8e3e7] text-[#ad4563]" aria-hidden="true"><SearchX className="h-6 w-6" /></div>
+                <h2 className="mt-4 font-heading text-xl font-bold text-[#38232a]">No companions match yet</h2>
+                <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#806970]">Broaden the city, area, or interests and we’ll look again.</p>
+                <button type="button" onClick={clearAll} className={`mt-5 min-h-11 rounded-full bg-[#3f2930] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#543940] ${focusRing}`}>Clear filters</button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`companions-${isSearching ? 'search' : activeSection}-${sortBy}`}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.26, ease: EASE }}
+              >
+                <CompanionResults companions={displayCompanions} featuredCompanions={featuredQuery.data ?? []} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+      </main>
+
+      <AnimatePresence>
+        {showSort && (
+          <motion.button
+            type="button"
+            aria-label="Close sort menu"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowSort(false)}
+            className="fixed inset-0 z-20 cursor-default bg-transparent"
+          />
+        )}
+      </AnimatePresence>
       <BottomNav />
     </div>
   )
@@ -387,7 +756,7 @@ function DiscoverInner() {
 
 export default function DiscoverPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-pink-500 border-t-transparent animate-spin" /></div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[#fffaf6]"><div className="h-9 w-9 animate-spin rounded-full border-2 border-[#c94f72] border-t-transparent" /></div>}>
       <DiscoverInner />
     </Suspense>
   )

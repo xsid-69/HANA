@@ -9,10 +9,11 @@ import {
   User, Camera, Edit3, Star, MapPin, Clock, TrendingUp,
   Shield, Eye, Settings, LogOut, ChevronRight, Languages,
   Calendar, BarChart3, Bell, CreditCard, HelpCircle,
-  X, Loader2, ImagePlus, Plus, Trash2, IndianRupee,
+  X, Loader2, ImagePlus, Plus, Trash2,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { formatINR } from '@/lib/format-currency'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -136,6 +137,7 @@ function EditCompanionModal({ isOpen, onClose, profile, companion, onSaved }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            data-lenis-prevent-wheel
             className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
@@ -153,7 +155,7 @@ function EditCompanionModal({ isOpen, onClose, profile, companion, onSaved }) {
                   {photos[0] ? (
                     <img src={photos[0]} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-2xl font-bold text-white">
+                    <div className="w-full h-full bg-hana-gradient flex items-center justify-center text-2xl font-bold text-white">
                       {displayName?.[0] || 'C'}
                     </div>
                   )}
@@ -161,7 +163,7 @@ function EditCompanionModal({ isOpen, onClose, profile, companion, onSaved }) {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="absolute -bottom-1 -right-1 w-8 h-8 rounded-lg bg-[var(--hana-charcoal)] flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                  className="absolute -bottom-1 -right-1 w-8 h-8 rounded-lg bg-[var(--hana-blush-dark)] flex items-center justify-center shadow-md shadow-pink-500/20 hover:bg-[var(--hana-rose)] transition-colors"
                 >
                   {uploading ? <Loader2 className="w-3.5 h-3.5 text-white animate-spin" /> : <Camera className="w-3.5 h-3.5 text-white" />}
                 </button>
@@ -317,14 +319,14 @@ export default function CompanionProfilePage() {
                 ) : user?.image ? (
                   <img src={user.image} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-2xl font-bold text-white">
+                  <div className="w-full h-full bg-hana-gradient flex items-center justify-center text-2xl font-bold text-white">
                     {(companion?.displayName || user?.name)?.[0] || 'C'}
                   </div>
                 )}
               </div>
               <button
                 onClick={() => setShowEdit(true)}
-                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-lg bg-[var(--hana-charcoal)] flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-lg bg-[var(--hana-blush-dark)] flex items-center justify-center shadow-md shadow-pink-500/20 hover:bg-[var(--hana-rose)] transition-colors"
               >
                 <Camera className="w-3.5 h-3.5 text-white" />
               </button>
@@ -346,7 +348,7 @@ export default function CompanionProfilePage() {
                   <span className="flex items-center gap-1"><Languages className="w-3.5 h-3.5" /> {companion.languages.join(', ')}</span>
                 )}
                 {companion?.hourlyRate && (
-                  <span className="flex items-center gap-1"><IndianRupee className="w-3.5 h-3.5" /> ₹{companion.hourlyRate}/hr</span>
+                  <span className="flex items-center gap-1">{formatINR(companion.hourlyRate)}/hr</span>
                 )}
               </div>
               <p className="text-sm text-[var(--hana-ash)] mt-2 max-w-xl leading-relaxed">
@@ -360,7 +362,7 @@ export default function CompanionProfilePage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowEdit(true)}
-                className="px-4 py-2 rounded-xl bg-[var(--hana-charcoal)] text-sm font-medium text-white hover:bg-[var(--hana-ash)] transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-[var(--hana-blush-dark)] text-sm font-medium text-white hover:bg-[var(--hana-rose)] transition-colors flex items-center gap-1.5 shadow-sm shadow-pink-500/20"
               >
                 <Edit3 className="w-3.5 h-3.5" /> Edit
               </motion.button>

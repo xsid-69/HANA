@@ -1,4 +1,5 @@
 import { Outfit, DM_Sans } from "next/font/google";
+import "lenis/dist/lenis.css";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -21,7 +22,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${outfit.variable} ${dmSans.variable} h-full antialiased`}>
+    <html lang="en" className={`${outfit.variable} ${dmSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-[family-name:var(--font-inter)]">
         <Providers>{children}</Providers>
       </body>

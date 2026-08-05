@@ -50,7 +50,10 @@ export async function POST(req) {
     return response
   } catch (err) {
     if (err?.name === 'ZodError') {
-      return NextResponse.json({ error: err.errors[0].message }, { status: 400 })
+      return NextResponse.json(
+        { error: err.issues?.[0]?.message || 'Invalid login details.' },
+        { status: 400 }
+      )
     }
     console.error('[login]', err)
     return NextResponse.json({ error: 'Something went wrong.' }, { status: 500 })

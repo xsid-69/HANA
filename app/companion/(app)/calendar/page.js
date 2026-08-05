@@ -145,7 +145,7 @@ export default function CompanionCalendarPage() {
                   onClick={() => setSelectedDate(dateKey)}
                   className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm font-medium transition-all duration-200 relative ${
                     isSelected
-                      ? 'bg-[var(--hana-charcoal)] text-white shadow-md'
+                      ? 'bg-[var(--hana-blush-dark)] text-white shadow-md shadow-pink-500/20'
                       : unavailable
                         ? 'bg-gray-100 text-gray-400 line-through'
                         : booked

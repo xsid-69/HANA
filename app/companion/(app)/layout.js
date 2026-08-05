@@ -8,32 +8,24 @@ import AuthGuard from '@/components/auth/AuthGuard'
 export default function CompanionLayout({ children }) {
   return (
     <AuthGuard>
-    <div className="min-h-screen bg-[var(--hana-cream)] relative">
-      {/* Ambient gradient orbs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute top-[-10%] left-[-8%] w-[550px] h-[550px] bg-pink-300/18 rounded-full blur-[110px] animate-pulse-soft" />
-        <div className="absolute top-[30%] right-[-12%] w-[500px] h-[500px] bg-purple-200/14 rounded-full blur-[120px] animate-float-gentle" />
-        <div className="absolute bottom-[-5%] left-[25%] w-[450px] h-[450px] bg-fuchsia-200/10 rounded-full blur-[110px]" />
-      </div>
+      <div className="relative min-h-[100dvh] bg-[var(--hana-cream)]">
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(255,107,138,0.16),transparent_30%),radial-gradient(circle_at_95%_15%,rgba(233,30,99,0.10),transparent_26%)]" aria-hidden="true" />
 
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block relative z-10">
-        <CompanionSidebar />
-      </div>
-
-      {/* Main Content */}
-      <main className="md:ml-[240px] min-h-screen pb-24 md:pb-0 relative z-10">
-        <CompanionTopNav />
-        <div className="p-4 md:p-8">
-          {children}
+        <div className="relative hidden md:block">
+          <CompanionSidebar />
         </div>
-      </main>
 
-      {/* Mobile Bottom Nav */}
-      <div className="md:hidden relative z-10">
-        <CompanionBottomNav />
+        <main id="main-content" className="relative min-h-[100dvh] pb-24 md:ml-[256px] md:pb-0">
+          <CompanionTopNav />
+          <div className="px-4 py-5 sm:px-6 md:px-8 md:py-7 xl:px-10">
+            {children}
+          </div>
+        </main>
+
+        <div className="relative md:hidden">
+          <CompanionBottomNav />
+        </div>
       </div>
-    </div>
     </AuthGuard>
   )
 }

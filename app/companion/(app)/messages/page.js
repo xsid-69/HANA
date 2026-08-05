@@ -62,7 +62,7 @@ export default function CompanionMessagesPage() {
       ) : conversations.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-center px-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center mx-auto mb-4 border border-pink-100">
+            <div className="w-20 h-20 rounded-2xl bg-[var(--hana-ivory)] flex items-center justify-center mx-auto mb-4 border border-[var(--hana-subtle)]">
               <MessageCircle className="w-8 h-8 text-pink-300" />
             </div>
             <p className="text-base font-semibold text-[var(--hana-charcoal)]">No conversations yet</p>
@@ -73,7 +73,7 @@ export default function CompanionMessagesPage() {
         <div className="flex flex-1 bg-white rounded-2xl border border-gray-100 overflow-hidden min-h-0 shadow-sm">
           {/* Conversations list */}
           <div className={`w-full md:w-80 lg:w-96 border-r border-gray-100 flex flex-col ${activeChat ? 'hidden md:flex' : 'flex'}`}>
-            <div className="flex-1 overflow-y-auto py-2">
+            <div data-lenis-prevent-wheel className="flex-1 overflow-y-auto py-2">
               {conversations.map((conv, i) => {
                 const other = conv.participants?.find(p => p.userId !== currentUserId)
                 const lastMsg = conv.messages?.[0]
@@ -96,7 +96,7 @@ export default function CompanionMessagesPage() {
                     }`}
                   >
                     <div className="relative shrink-0">
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shadow-sm">
+                      <div className="w-11 h-11 rounded-full bg-[var(--hana-ivory)] flex items-center justify-center overflow-hidden shadow-sm ring-1 ring-[var(--hana-subtle)]">
                         {avatar ? (
                           <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
                         ) : (
@@ -142,7 +142,7 @@ export default function CompanionMessagesPage() {
             ) : (
               <div className="flex-1 flex items-center justify-center text-center">
                 <motion.div animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}>
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center text-3xl mx-auto mb-4 border border-pink-100/50">
+                  <div className="w-20 h-20 rounded-2xl bg-[var(--hana-ivory)] flex items-center justify-center text-3xl mx-auto mb-4 border border-[var(--hana-subtle)]">
                     💬
                   </div>
                   <p className="text-sm font-medium text-[var(--hana-charcoal)]">Select a conversation</p>
@@ -224,7 +224,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
           <ArrowLeft className="w-5 h-5 text-[var(--hana-ash)]" />
         </motion.button>
         <div className="relative shrink-0">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shadow-sm ring-2 ring-white">
+          <div className="w-10 h-10 rounded-full bg-[var(--hana-ivory)] flex items-center justify-center overflow-hidden shadow-sm ring-2 ring-white">
             {avatar ? (
               <img src={avatar} alt={displayName} className="w-full h-full object-cover" />
             ) : (
@@ -245,7 +245,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
       </motion.div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 min-h-0">
+      <div data-lenis-prevent-wheel className="flex-1 overflow-y-auto px-4 md:px-6 py-4 min-h-0">
         {isLoading && (
           <div className="flex justify-center py-12">
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
@@ -256,7 +256,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
 
         {!isLoading && messageList.length === 0 && (
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-16">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center border border-pink-100">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--hana-ivory)] flex items-center justify-center border border-[var(--hana-subtle)]">
               <MessageCircle className="w-7 h-7 text-pink-300" />
             </div>
             <p className="text-sm font-medium text-[var(--hana-charcoal)]">Start the conversation</p>
@@ -279,7 +279,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
                 className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'} ${isLast ? 'mb-3' : 'mb-0.5'}`}
               >
                 {!isMe && (
-                  <div className={`w-7 h-7 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0 ${showAvatar ? 'visible' : 'invisible'}`}>
+                  <div className={`w-7 h-7 rounded-full bg-[var(--hana-ivory)] flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-[var(--hana-subtle)] ${showAvatar ? 'visible' : 'invisible'}`}>
                     {avatar ? (
                       <img src={avatar} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -291,7 +291,7 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
                   <div
                     className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed break-words ${
                       isMe
-                        ? `bg-gradient-to-br from-[var(--hana-charcoal)] to-gray-800 text-white shadow-md ${isLast ? 'rounded-br-md' : ''}`
+                        ? `bg-[var(--hana-blush-dark)] text-white shadow-md shadow-pink-500/15 ${isLast ? 'rounded-br-md' : ''}`
                         : `bg-white text-[var(--hana-charcoal)] border border-gray-100 shadow-sm ${isLast ? 'rounded-bl-md' : ''}`
                     }`}
                   >

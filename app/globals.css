@@ -129,6 +129,12 @@
   html {
     scroll-behavior: smooth;
   }
+  html.has-lenis {
+    scroll-behavior: auto;
+  }
+  html[data-motion="reduced"] {
+    scroll-behavior: auto;
+  }
 }
 
 /* ========== TYPOGRAPHY ========== */
@@ -751,10 +757,10 @@ a[href]:not(.btn-press):not(.hover-lift):not(.hover-grow) {
 }
 
 /* ========== REDUCED MOTION ========== */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }

@@ -125,6 +125,7 @@ function EditProfileModal({ isOpen, onClose, profile, onSaved }) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            data-lenis-prevent-wheel
             className="bg-white rounded-t-3xl md:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >

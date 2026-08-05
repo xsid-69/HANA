@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  TrendingUp, TrendingDown, IndianRupee, ArrowUpRight,
-  ArrowDownRight, CreditCard, Wallet, Clock, CheckCircle2,
+  TrendingUp, IndianRupee, ArrowUpRight,
+  CreditCard, Wallet, Clock, CheckCircle2,
   ChevronRight, Calendar,
 } from 'lucide-react'
+import { formatINR, formatSignedINR, formatCompactINR } from '@/lib/format-currency'
 
 const WEEKLY_DATA = [
   { day: 'Mon', amount: 2400, max: 4800 },
@@ -63,22 +64,22 @@ export default function CompanionEarningsPage() {
             </div>
           </div>
           <div className="text-3xl font-bold text-[var(--hana-charcoal)]">
-            ₹{thisMonth.toLocaleString('en-IN')}
+            {formatINR(thisMonth)}
           </div>
           <div className="text-xs text-[var(--hana-muted)] mt-1.5 flex items-center gap-1">
             <ArrowUpRight className="w-3 h-3 text-emerald-500" />
-            ₹{(thisMonth - lastMonth).toLocaleString('en-IN')} more than last month
+            {formatSignedINR(thisMonth - lastMonth)} versus last month
           </div>
         </div>
 
         {/* Last Month */}
-        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-xl p-5 border border-[var(--hana-subtle)] shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-medium text-[var(--hana-muted)] uppercase tracking-wider">Last Month</span>
             <Calendar className="w-4 h-4 text-[var(--hana-muted)]" />
           </div>
           <div className="text-3xl font-bold text-[var(--hana-charcoal)]">
-            ₹{lastMonth.toLocaleString('en-IN')}
+            {formatINR(lastMonth)}
           </div>
           <div className="text-xs text-[var(--hana-muted)] mt-1.5">
             May 2026
@@ -86,13 +87,13 @@ export default function CompanionEarningsPage() {
         </div>
 
         {/* All Time */}
-        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-xl p-5 border border-[var(--hana-subtle)] shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-medium text-[var(--hana-muted)] uppercase tracking-wider">All Time</span>
             <Wallet className="w-4 h-4 text-[var(--hana-muted)]" />
           </div>
           <div className="text-3xl font-bold text-[var(--hana-charcoal)]">
-            ₹{allTime.toLocaleString('en-IN')}
+            {formatINR(allTime)}
           </div>
           <div className="text-xs text-[var(--hana-muted)] mt-1.5">
             Since Jan 2026
@@ -108,7 +109,7 @@ export default function CompanionEarningsPage() {
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-semibold text-sm text-[var(--hana-charcoal)]">This Week</h2>
               <span className="text-xs text-[var(--hana-muted)]">
-                Total: ₹{WEEKLY_DATA.reduce((s, d) => s + d.amount, 0).toLocaleString('en-IN')}
+                Total: {formatINR(WEEKLY_DATA.reduce((s, d) => s + d.amount, 0))}
               </span>
             </div>
             <div className="flex items-end gap-2 h-40">
@@ -117,12 +118,12 @@ export default function CompanionEarningsPage() {
                 return (
                   <div key={d.day} className="flex-1 flex flex-col items-center gap-2">
                     <span className="text-[10px] font-medium text-[var(--hana-muted)]">
-                      {d.amount > 0 ? `₹${(d.amount / 1000).toFixed(1)}k` : '—'}
+                      {d.amount > 0 ? formatCompactINR(d.amount) : '—'}
                     </span>
                     <div className="w-full flex justify-center">
                       <div
                         className={`w-full max-w-[32px] rounded-t-lg transition-all duration-500 ${
-                          d.amount > 0 ? 'bg-[var(--hana-charcoal)]' : 'bg-gray-200'
+                          d.amount > 0 ? 'bg-[var(--hana-blush-dark)]' : 'bg-[var(--hana-ivory)]'
                         }`}
                         style={{ height: `${height}%` }}
                       />
@@ -155,7 +156,7 @@ export default function CompanionEarningsPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold text-[var(--hana-charcoal)]">+₹{tx.amount.toLocaleString('en-IN')}</div>
+                    <div className="text-sm font-semibold text-[var(--hana-charcoal)]">{formatSignedINR(tx.amount)}</div>
                     <div className={`text-[10px] font-medium ${tx.status === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
                       {tx.status === 'paid' ? 'Paid' : 'Pending'}
                     </div>
@@ -177,14 +178,14 @@ export default function CompanionEarningsPage() {
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                   <span className="text-sm text-[var(--hana-ash)]">Last Payout</span>
                 </div>
-                <span className="text-sm font-semibold text-[var(--hana-charcoal)]">₹8,200</span>
+                <span className="text-sm font-semibold text-[var(--hana-charcoal)]">{formatINR(8200)}</span>
               </div>
-              <div className="flex items-center justify-between py-2 border-b border-gray-50">
+              <div className="flex items-center justify-between py-2 border-b border-[var(--hana-ivory)]">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-500" />
                   <span className="text-sm text-[var(--hana-ash)]">Pending</span>
                 </div>
-                <span className="text-sm font-semibold text-amber-600">₹3,600</span>
+                <span className="text-sm font-semibold text-amber-600">{formatINR(3600)}</span>
               </div>
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-2">
@@ -206,7 +207,7 @@ export default function CompanionEarningsPage() {
             <div className="space-y-3">
               {[
                 { label: 'Bookings Completed', value: '24', change: '+3 this month', up: true },
-                { label: 'Avg. Booking Value', value: '₹1,850', change: '↑ 8% vs last month', up: true },
+                { label: 'Avg. Booking Value', value: formatINR(1850), change: '↑ 8% vs last month', up: true },
                 { label: 'Repeat Clients', value: '6', change: '25% repeat rate', up: true },
                 { label: 'Rating', value: '4.9', change: '32 reviews', up: true },
               ].map(metric => (
@@ -226,9 +227,9 @@ export default function CompanionEarningsPage() {
           </motion.div>
 
           {/* Quick Insight */}
-          <motion.div variants={itemVariants} className="bg-gradient-to-br from-[var(--hana-charcoal)] to-[var(--hana-ash)] rounded-xl p-5 text-white">
+          <motion.div variants={itemVariants} className="bg-hana-gradient rounded-xl p-5 text-white shadow-[0_18px_42px_-28px_rgba(233,30,99,0.75)]">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <TrendingUp className="w-4 h-4 text-white/80" />
               <span className="text-xs font-medium text-white/70 uppercase tracking-wider">Insight</span>
             </div>
             <p className="text-sm leading-relaxed text-white/90">

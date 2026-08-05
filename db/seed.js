@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { users, companions, experiences, availabilities, bookings, reviews, savedCompanions, notifications } from './schema.js'
 import { eq, inArray } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
+import { EXTRA_COMPANIONS } from './extra-companions.js'
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const db = drizzle(pool)
@@ -45,7 +46,7 @@ const COMPANIONS = [
     tags: ['art', 'music', 'tech', 'craft beer'],
     hourlyRate: 1400,
     photos: [
-      'https://www.shutterstock.com/image-photo/close-portrait-beautiful-young-attractive-260nw-1381098305.jpg',
+      'https://i.pinimg.com/736x/3a/78/a2/3a78a22f637e8b155901548b9d5d1bd1.jpg',
       'https://www.shutterstock.com/image-photo/close-portrait-beautiful-young-attractive-260nw-1381098305.jpg',
     ],
     experiences: [
@@ -415,6 +416,8 @@ const COMPANIONS = [
   },
 ]
 
+COMPANIONS.push(...EXTRA_COMPANIONS)
+
 const DEMO_EMAILS = COMPANIONS.map(c => c.email)
 
 async function main() {
@@ -490,11 +493,11 @@ async function main() {
       tags: data.tags,
       hourlyRate: data.hourlyRate,
       isActive: true,
-      isFeatured: i < 6,
+      isFeatured: [...COMPANIONS].sort((a, b) => b.hourlyRate - a.hourlyRate).slice(0, 5).some((item) => item.email === data.email),
       verificationStatus: 'VERIFIED',
-      averageRating: +(4.2 + Math.random() * 0.75).toFixed(1),
-      totalReviews: Math.floor(Math.random() * 30) + 8,
-      totalBookings: Math.floor(Math.random() * 50) + 15,
+      averageRating: data.averageRating ?? +(4.2 + Math.random() * 0.75).toFixed(1),
+      totalReviews: data.totalReviews ?? Math.floor(Math.random() * 30) + 8,
+      totalBookings: data.totalBookings ?? Math.floor(Math.random() * 50) + 15,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).onConflictDoNothing().returning()

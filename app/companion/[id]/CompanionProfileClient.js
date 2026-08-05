@@ -3,15 +3,28 @@
 import { Star, ArrowLeft, Heart, MapPin, Share2, Pencil } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import BottomNav from '@/components/layout/BottomNav'
 import { saveLastCompanion } from '@/lib/session-companion'
 import { getImageUrl } from '@/lib/image-url'
+import { formatINR } from '@/lib/format-currency'
+import { logUserEvent } from '@/app/actions/recommendations'
 
-export default function CompanionProfileClient({ companion, isOwnProfile }) {
+export default function CompanionProfileClient({ companion, isOwnProfile, viewerUserId }) {
   const router = useRouter()
   const [liked, setLiked] = useState(false)
+
+  useEffect(() => {
+    if (!viewerUserId || isOwnProfile) return undefined
+
+    const viewedAt = Date.now()
+    return () => {
+      const sessionDuration = Math.max(1, Math.round((Date.now() - viewedAt) / 1000))
+      logUserEvent(viewerUserId, companion.id, 'profile_viewed', sessionDuration)
+        .catch(console.error)
+    }
+  }, [companion.id, isOwnProfile, viewerUserId])
 
   const handleBook = () => {
     saveLastCompanion(companion)
@@ -226,12 +239,8 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
                       <p className="text-xs text-[var(--hana-muted)] mt-0.5">{exp.description || 'Enjoy a memorable experience'}</p>
                     </div>
                   </div>
-                  <span className={`text-base font-bold shrink-0 ${
-                    i % 3 === 0 ? 'text-pink-500' :
-                    i % 3 === 1 ? 'text-orange-500' :
-                    'text-purple-500'
-                  }`}>
-                    ¥{companion.hourlyRate?.toLocaleString()}
+                  <span className="text-base font-bold shrink-0 text-[var(--hana-blush-dark)]">
+                    {formatINR(companion.hourlyRate)}
                   </span>
                 </motion.div>
               ))}
@@ -298,7 +307,7 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
               <div>
                 <p className="text-[10px] text-[var(--hana-muted)] uppercase tracking-wider font-medium">From</p>
                 <p className="text-xl font-bold text-[var(--hana-charcoal)]">
-                  ¥{companion.hourlyRate?.toLocaleString()}<span className="text-sm font-normal text-[var(--hana-muted)]">/hr</span>
+                  {formatINR(companion.hourlyRate)}<span className="text-sm font-normal text-[var(--hana-muted)]">/hr</span>
                 </p>
               </div>
               <button
@@ -479,12 +488,8 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
                           <p className="text-xs text-[var(--hana-muted)]">{exp.description || 'Enjoy a memorable experience'}</p>
                         </div>
                       </div>
-                      <span className={`text-sm font-bold shrink-0 ${
-                        i % 3 === 0 ? 'text-pink-500' :
-                        i % 3 === 1 ? 'text-orange-500' :
-                        'text-purple-500'
-                      }`}>
-                        ¥{companion.hourlyRate?.toLocaleString()}
+                      <span className="text-sm font-bold shrink-0 text-[var(--hana-blush-dark)]">
+                        {formatINR(companion.hourlyRate)}
                       </span>
                     </motion.div>
                   ))}
@@ -551,7 +556,7 @@ export default function CompanionProfileClient({ companion, isOwnProfile }) {
                   <div>
                     <p className="text-xs text-[var(--hana-muted)] uppercase tracking-wider font-medium">From</p>
                     <p className="text-2xl font-bold text-[var(--hana-charcoal)]">
-                      ¥{companion.hourlyRate?.toLocaleString()}<span className="text-base font-normal text-[var(--hana-muted)]">/hr</span>
+                      {formatINR(companion.hourlyRate)}<span className="text-base font-normal text-[var(--hana-muted)]">/hr</span>
                     </p>
                   </div>
                   <button

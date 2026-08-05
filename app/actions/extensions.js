@@ -7,6 +7,7 @@ import { auth } from '@/lib/auth'
 import { verifyToken } from '@/lib/jwt'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
+import { formatINR } from '@/lib/format-currency'
 
 async function getUser() {
   let userId = null
@@ -303,7 +304,7 @@ export async function payExtension(extensionId) {
       userId: companion.userId,
       type: 'EXTENSION_COMPLETED',
       title: 'Booking Extended!',
-      body: `Booking extended by ${extension.extraMinutes} minutes. Additional earnings: ₹${extension.additionalAmount}`,
+      body: `Booking extended by ${extension.extraMinutes} minutes. Additional earnings: ${formatINR(extension.additionalAmount)}`,
       data: { bookingId: booking.id, extensionId, newEndTime, additionalAmount: extension.additionalAmount },
     },
   ])

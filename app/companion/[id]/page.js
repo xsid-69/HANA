@@ -63,22 +63,30 @@ export default async function CompanionPage({ params }) {
     },
   }
 
-  let isOwnProfile = false
+  let viewerUserId = null
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get('hana-token')?.value
     if (token) {
       const payload = await verifyToken(token)
-      if (payload?.id && payload.id === companion.userId) {
-        isOwnProfile = true
-      }
+      if (payload?.id) viewerUserId = payload.id
     }
   } catch {}
+
+  if (!viewerUserId) {
+    try {
+      const { auth } = await import('@/lib/auth')
+      viewerUserId = (await auth())?.user?.id ?? null
+    } catch {}
+  }
+
+  const isOwnProfile = viewerUserId === companion.userId
 
   return (
     <CompanionProfileClient
       companion={JSON.parse(JSON.stringify(data))}
       isOwnProfile={isOwnProfile}
+      viewerUserId={viewerUserId}
     />
   )
 }

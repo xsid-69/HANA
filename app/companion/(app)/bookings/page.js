@@ -5,11 +5,12 @@ import { motion } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCompanionBookings, acceptBooking, rejectBooking, companionCancelBooking, completeBooking } from '@/app/actions/bookings'
 import {
-  CheckCircle2, XCircle, MessageCircle, Clock, Calendar,
-  IndianRupee, User, Shield, AlertTriangle, Timer, Loader2,
+  CheckCircle2, XCircle, Clock, Calendar,
+  Shield, Timer, Loader2,
 } from 'lucide-react'
 import VerifyMeetingCard from '@/components/booking/VerifyMeetingCard'
 import CompanionActiveBanner from '@/components/booking/CompanionActiveBanner'
+import { formatINR } from '@/lib/format-currency'
 import { useUIStore } from '@/store/useUIStore'
 
 const TABS = ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled']
@@ -48,7 +49,7 @@ function RequestCountdown({ expiresAt }) {
 
 const STATUS_CONFIG = {
   PENDING_ACCEPTANCE: { label: 'Pending Acceptance', color: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
-  AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'bg-purple-50 text-purple-700 border-purple-200', dot: 'bg-purple-500' },
+  AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'bg-[var(--hana-ivory)] text-[var(--hana-blush-dark)] border-[var(--hana-subtle)]', dot: 'bg-[var(--hana-blush-dark)]' },
   CONFIRMED: { label: 'Confirmed', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   IN_PROGRESS: { label: 'In Progress', color: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
   COMPLETED: { label: 'Completed', color: 'bg-blue-50 text-blue-700 border-blue-200', dot: 'bg-blue-500' },
@@ -145,7 +146,7 @@ export default function CompanionBookingsPage() {
           { label: 'Pending', value: pendingCount, color: 'text-amber-600' },
           { label: 'Confirmed', value: confirmedCount, color: 'text-emerald-600' },
           { label: 'Completed', value: completedCount, color: 'text-blue-600' },
-          { label: 'This Month', value: `₹${earnings.toLocaleString('en-IN')}`, color: 'text-[var(--hana-charcoal)]' },
+          { label: 'This Month', value: formatINR(earnings), color: 'text-[var(--hana-charcoal)]' },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
             <div className="text-xs text-[var(--hana-muted)] font-medium">{stat.label}</div>
@@ -162,8 +163,8 @@ export default function CompanionBookingsPage() {
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 ${
               activeTab === tab
-                ? 'bg-[var(--hana-charcoal)] text-white shadow-sm'
-                : 'text-[var(--hana-muted)] hover:text-[var(--hana-charcoal)] hover:bg-gray-50'
+                ? 'bg-[var(--hana-blush-dark)] text-white shadow-sm shadow-pink-500/20'
+                : 'text-[var(--hana-muted)] hover:text-[var(--hana-charcoal)] hover:bg-[var(--hana-ivory)]'
             }`}
           >
             {tab}
@@ -205,7 +206,7 @@ export default function CompanionBookingsPage() {
                     <tr className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-xs font-semibold text-pink-600">
+                          <div className="w-9 h-9 rounded-full bg-[var(--hana-ivory)] flex items-center justify-center text-xs font-semibold text-[var(--hana-blush-dark)]">
                             {booking.client?.name?.[0] || '?'}
                           </div>
                           <div>
@@ -231,7 +232,7 @@ export default function CompanionBookingsPage() {
                         </span>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <span className="font-semibold text-sm text-[var(--hana-charcoal)]">₹{booking.totalAmount.toLocaleString('en-IN')}</span>
+                        <span className="font-semibold text-sm text-[var(--hana-charcoal)]">{formatINR(booking.totalAmount)}</span>
                       </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -240,7 +241,7 @@ export default function CompanionBookingsPage() {
                               <button
                                 onClick={() => accept.mutate(booking.id)}
                                 disabled={accept.isPending}
-                                className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                                className="p-1.5 rounded-lg bg-[var(--hana-ivory)] text-[var(--hana-blush-dark)] hover:bg-pink-100 transition-colors disabled:opacity-50"
                                 title="Accept"
                               >
                                 <CheckCircle2 className="w-4 h-4" />
@@ -308,7 +309,7 @@ export default function CompanionBookingsPage() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-xs font-semibold text-pink-600">
+                    <div className="w-10 h-10 rounded-full bg-[var(--hana-ivory)] flex items-center justify-center text-xs font-semibold text-[var(--hana-blush-dark)]">
                       {booking.client?.name?.[0] || '?'}
                     </div>
                     <div>
@@ -337,7 +338,7 @@ export default function CompanionBookingsPage() {
                       <span className="text-xs text-emerald-600">{booking.client?.trustScore ?? 100}%</span>
                     </div>
                   </div>
-                  <span className="font-semibold text-[var(--hana-charcoal)]">₹{booking.totalAmount.toLocaleString('en-IN')}</span>
+                  <span className="font-semibold text-[var(--hana-charcoal)]">{formatINR(booking.totalAmount)}</span>
                 </div>
 
                 {booking.status === 'PENDING_ACCEPTANCE' && (
@@ -349,7 +350,7 @@ export default function CompanionBookingsPage() {
                       <button
                         onClick={() => accept.mutate(booking.id)}
                         disabled={accept.isPending}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[var(--hana-blush-dark)] text-white text-xs font-medium hover:bg-[var(--hana-rose)] transition-colors disabled:opacity-50"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" /> Accept
                       </button>
@@ -393,8 +394,8 @@ export default function CompanionBookingsPage() {
 
                 {booking.status === 'AWAITING_PAYMENT' && booking.paymentExpiresAt && (
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50">
-                    <Timer className="w-4 h-4 text-purple-500" />
-                    <span className="text-xs text-purple-600 font-medium">Awaiting client payment...</span>
+                    <Timer className="w-4 h-4 text-[var(--hana-blush-dark)]" />
+                    <span className="text-xs text-[var(--hana-blush-dark)] font-medium">Awaiting client payment...</span>
                   </div>
                 )}
               </motion.div>

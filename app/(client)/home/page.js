@@ -265,7 +265,7 @@ export default function HomePage() {
           <motion.section variants={itemVariants} className="mt-16">
             <div className="mb-6">
               <h2 className="font-heading font-bold text-2xl text-[var(--hana-charcoal)]">Available Cities</h2>
-              <p className="text-[var(--hana-muted)] text-sm mt-1">Companions across India's most vibrant cities</p>
+              <p className="text-[var(--hana-muted)] text-sm mt-1">Companions across India&apos;s most vibrant cities</p>
             </div>
             <div className="flex flex-wrap gap-3">
               {CITIES.map(city => (
@@ -303,7 +303,7 @@ export default function HomePage() {
                   <span className="font-heading font-bold text-2xl text-[var(--hana-charcoal)]">Hana</span>
                 </div>
                 <p className="text-[var(--hana-muted)] text-sm leading-relaxed">
-                  India's social companionship platform. Verified, safe, and memorable.
+                  India&apos;s social companionship platform. Verified, safe, and memorable.
                 </p>
               </div>
               <div className="flex gap-16">

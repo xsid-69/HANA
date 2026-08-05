@@ -21,6 +21,7 @@ import MeetingCodeCard from '@/components/booking/MeetingCodeCard'
 import { getImageUrl } from '@/lib/image-url'
 import ActiveBookingBanner from '@/components/booking/ActiveBookingBanner'
 import { useUIStore } from '@/store/useUIStore'
+import { formatINR } from '@/lib/format-currency'
 
 const EXPERIENCES = [
   { id: 'coffee', name: 'Coffee Date', desc: 'Cozy chats over artisan coffee', emoji: '☕', icon: Coffee, price: 800 },
@@ -307,7 +308,7 @@ function BookingsInner() {
                             <p className="text-xs text-[var(--hana-muted)]">{exp.desc}</p>
                           </div>
                           <span className={`text-sm font-semibold ${isSelected ? 'text-[var(--hana-blush-dark)]' : 'text-[var(--hana-ash)]'}`}>
-                            ₹{exp.price}/hr
+                            {formatINR(exp.price)}/hr
                           </span>
                         </button>
                       )
@@ -394,7 +395,7 @@ function BookingsInner() {
                       </button>
                       <div className="text-center">
                         <span className="text-lg font-bold text-[var(--hana-charcoal)]">{duration} hour{duration > 1 ? 's' : ''}</span>
-                        <p className="text-xs text-[var(--hana-muted)]">₹{hourlyRate} per hour</p>
+                        <p className="text-xs text-[var(--hana-muted)]">{formatINR(hourlyRate)} per hour</p>
                       </div>
                       <button onClick={() => setDuration(d => Math.min(8, d + 1))}
                         className="w-10 h-10 rounded-full bg-[var(--hana-blush-dark)] flex items-center justify-center text-white shadow-md shadow-pink-500/25 hover:opacity-90 transition-opacity btn-press">
@@ -450,7 +451,7 @@ function BookingsInner() {
 
                   <div className="bg-white rounded-2xl p-5 border border-[var(--hana-subtle)]/30 shadow-sm mt-3 flex justify-between items-center">
                     <span className="text-sm font-semibold text-[var(--hana-charcoal)]">Total</span>
-                    <span className="text-xl font-bold text-[var(--hana-blush-dark)]">₹{total.toLocaleString('en-IN')}</span>
+                    <span className="text-xl font-bold text-[var(--hana-blush-dark)]">{formatINR(total)}</span>
                   </div>
 
                   {bookingSuccess && (
@@ -485,7 +486,7 @@ function BookingsInner() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[var(--hana-muted)]">Rate</span>
-                  <span className="font-medium text-[var(--hana-charcoal)]">₹{hourlyRate}/hr</span>
+                  <span className="font-medium text-[var(--hana-charcoal)]">{formatINR(hourlyRate)}/hr</span>
                 </div>
                 {step >= 2 && selectedDate && (
                   <>
@@ -505,7 +506,7 @@ function BookingsInner() {
                 )}
                 <div className="border-t border-[var(--hana-subtle)]/30 pt-3 flex justify-between">
                   <span className="font-semibold text-[var(--hana-charcoal)]">Total</span>
-                  <span className="text-xl font-bold text-[var(--hana-blush-dark)]">₹{total.toLocaleString('en-IN')}</span>
+                  <span className="text-xl font-bold text-[var(--hana-blush-dark)]">{formatINR(total)}</span>
                 </div>
               </div>
             </div>
@@ -517,7 +518,7 @@ function BookingsInner() {
           <div>
             <p className="text-xs text-[var(--hana-muted)]">{step === 1 ? selectedExperience.name : 'Total'}</p>
             <p className="text-xl font-bold text-[var(--hana-charcoal)]">
-              ₹{step === 1 ? `${hourlyRate}/hr` : total.toLocaleString('en-IN')}
+              {step === 1 ? `${formatINR(hourlyRate)}/hr` : formatINR(total)}
             </p>
           </div>
           {step < 3 ? (
@@ -677,7 +678,7 @@ function BookingCard({ booking }) {
         </div>
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
           <span className="text-xs text-[var(--hana-muted)]">{booking.activityType} · {booking.durationHours}h</span>
-          <span className="text-base font-bold text-[var(--hana-charcoal)]">₹{booking.totalAmount?.toLocaleString('en-IN')}</span>
+          <span className="text-base font-bold text-[var(--hana-charcoal)]">{formatINR(booking.totalAmount)}</span>
         </div>
       </div>
 

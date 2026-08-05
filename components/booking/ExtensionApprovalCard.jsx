@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, IndianRupee, Check, X, AlertCircle, Loader2 } from 'lucide-react'
+import { Clock, Check, X, AlertCircle, Loader2 } from 'lucide-react'
 import { approveExtension, declineExtension } from '@/app/actions/extensions'
+import { formatINR } from '@/lib/format-currency'
 
 export default function ExtensionApprovalCard({ extension, booking, clientName, onResolved }) {
   const [loading, setLoading] = useState(null)
@@ -63,11 +64,11 @@ export default function ExtensionApprovalCard({ extension, booking, clientName, 
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
-      className="bg-gradient-to-br from-violet-50 to-amber-50 border-2 border-violet-200 rounded-2xl p-5 shadow-lg shadow-violet-100/50"
+      className="rounded-2xl border border-[var(--hana-subtle)] bg-[var(--hana-ivory)] p-5 shadow-[0_16px_40px_-28px_rgba(233,30,99,0.5)]"
     >
       <div className="flex items-start gap-3 mb-4">
-        <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
-          <Clock className="w-5 h-5 text-violet-600" />
+        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0 text-[var(--hana-blush-dark)] ring-1 ring-[var(--hana-subtle)]">
+          <Clock className="w-5 h-5" />
         </div>
         <div>
           <h3 className="font-bold text-neutral-900 text-sm">Extension Request</h3>
@@ -78,14 +79,13 @@ export default function ExtensionApprovalCard({ extension, booking, clientName, 
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-white rounded-xl p-3 border border-neutral-100">
+        <div className="bg-white rounded-xl p-3 border border-[var(--hana-subtle)]">
           <p className="text-[11px] text-neutral-500 uppercase tracking-wide font-medium">Additional Earnings</p>
-          <p className="flex items-center gap-1 font-bold text-lg text-emerald-600 mt-0.5">
-            <IndianRupee className="w-4 h-4" />
-            {extension.additionalAmount.toLocaleString('en-IN')}
+          <p className="font-bold text-lg text-[var(--hana-blush-dark)] mt-0.5">
+            {formatINR(extension.additionalAmount)}
           </p>
         </div>
-        <div className="bg-white rounded-xl p-3 border border-neutral-100">
+        <div className="bg-white rounded-xl p-3 border border-[var(--hana-subtle)]">
           <p className="text-[11px] text-neutral-500 uppercase tracking-wide font-medium">New End Time</p>
           <p className="font-bold text-lg text-neutral-800 mt-0.5">{newEndTime}</p>
         </div>
@@ -104,7 +104,7 @@ export default function ExtensionApprovalCard({ extension, booking, clientName, 
           whileTap={{ scale: 0.97 }}
           disabled={loading || extension._conflictWarning}
           onClick={handleAccept}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold text-sm shadow-md shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--hana-blush-dark)] text-white font-semibold text-sm shadow-md shadow-pink-200 hover:bg-[var(--hana-rose)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading === 'accept' ? (
             <Loader2 className="w-4 h-4 animate-spin" />

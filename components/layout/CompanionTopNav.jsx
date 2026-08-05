@@ -1,46 +1,40 @@
 'use client'
 
+import Link from 'next/link'
 import { useSession } from 'next-auth/react'
-import { useAuthStore } from '@/lib/auth-store'
-import { Search } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import NotificationDropdown from '@/components/notifications/NotificationDropdown'
+import { useAuthStore } from '@/lib/auth-store'
 
 export default function CompanionTopNav() {
   const { data: session } = useSession()
-  const { user: jwtUser } = useAuthStore()
+  const jwtUser = useAuthStore((state) => state.user)
   const user = jwtUser || session?.user
 
   return (
-    <header
-      className="sticky top-0 z-40 flex items-center justify-between px-4 md:px-8 py-3 bg-white/80 backdrop-blur-md border-b"
-      style={{ borderColor: 'var(--hana-subtle)' }}
-    >
-      <div className="flex items-center gap-3 flex-1">
-        <div className="relative hidden sm:block max-w-[280px] flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--hana-muted)]" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-full pl-9 pr-4 py-2 rounded-xl border bg-gray-50/80 text-sm placeholder:text-[var(--hana-muted)] focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300 transition-all"
-            style={{ borderColor: 'var(--hana-subtle)' }}
-          />
-        </div>
-      </div>
+    <header className="sticky top-0 z-20 border-b border-[var(--hana-subtle)]/80 bg-[var(--hana-cream)]/90 px-4 py-3 backdrop-blur-xl sm:px-6 md:px-8 xl:px-10">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-[#20171b] focus:px-3 focus:py-2 focus:text-sm focus:text-white">
+        Skip to dashboard
+      </a>
+      <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4">
+        <Link href="/companion/dashboard" className="flex min-h-10 items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#a33b63] md:pointer-events-none">
+          <span className="flex size-8 items-center justify-center rounded-[11px] bg-[#a9476b] text-white md:hidden">
+            <Heart size={14} fill="currentColor" aria-hidden="true" />
+          </span>
+          <span className="font-heading text-sm font-semibold text-[#45343b] md:text-[#75636b]">Companion workspace</span>
+        </Link>
 
-      <div className="flex items-center gap-3">
-        <NotificationDropdown />
-
-        <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-[var(--hana-subtle)]">
-          {user?.image ? (
-            <img src={user.image} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div
-              className="w-full h-full flex items-center justify-center text-xs font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, var(--hana-blush), var(--hana-blush-dark))' }}
-            >
-              {user?.name?.[0] || '?'}
-            </div>
-          )}
+        <div className="flex items-center gap-2">
+          <NotificationDropdown />
+          <Link href="/companion/profile" aria-label="Open your profile" className="rounded-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[#a33b63] focus-visible:ring-offset-2">
+            <span className="block size-9 overflow-hidden rounded-[13px] bg-[#a9476b] ring-1 ring-black/[0.06]">
+              {user?.image ? (
+                <img src={user.image} alt={`${user.name || 'Companion'} profile`} className="size-full object-cover" />
+              ) : (
+                <span className="flex size-full items-center justify-center text-xs font-semibold text-white">{user?.name?.[0] || '?'}</span>
+              )}
+            </span>
+          </Link>
         </div>
       </div>
     </header>

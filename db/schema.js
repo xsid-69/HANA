@@ -187,6 +187,27 @@ export const savedCompanions = pgTable('saved_companions', {
   uniqueIndex('saved_companions_userId_companionId_key').on(table.userId, table.companionId),
 ])
 
+export const userEvents = pgTable('user_events', {
+  id: text('id').primaryKey().$defaultFn(createId),
+  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  companionId: text('companionId').notNull().references(() => companions.id, { onDelete: 'cascade' }),
+  eventType: text('eventType').notNull(),
+  weight: integer('weight').notNull(),
+  sessionDuration: integer('sessionDuration'),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+})
+
+export const recommendations = pgTable('recommendations', {
+  id: text('id').primaryKey().$defaultFn(createId),
+  userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  companionId: text('companionId').notNull().references(() => companions.id, { onDelete: 'cascade' }),
+  score: real('score').notNull(),
+  generatedAt: timestamp('generatedAt', { mode: 'date' }).defaultNow().notNull(),
+  modelVersion: text('modelVersion').default('v1').notNull(),
+}, (table) => [
+  uniqueIndex('recommendations_userId_companionId_key').on(table.userId, table.companionId),
+])
+
 export const conversations = pgTable('conversations', {
   id: text('id').primaryKey().$defaultFn(createId),
   bookingId: text('bookingId').unique().references(() => bookings.id),

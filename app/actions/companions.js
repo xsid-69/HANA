@@ -2,7 +2,7 @@
 
 import { db } from '@/db'
 import { companions, users, experiences, reviews, bookings, availabilities, blockedDates } from '@/db/schema'
-import { eq, and, or, gte, lte, ilike, desc, asc, inArray, arrayOverlaps, count } from 'drizzle-orm'
+import { eq, and, or, gte, lte, ilike, desc, asc, inArray, arrayOverlaps, count, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 export async function getCompanions(filters) {
@@ -13,7 +13,7 @@ export async function getCompanions(filters) {
     tags: z.array(z.string()).optional(),
     minPrice: z.number().optional(),
     maxPrice: z.number().optional(),
-    sortBy: z.enum(['rating', 'price_asc', 'price_desc', 'name']).optional(),
+    sortBy: z.enum(['random', 'rating', 'price_asc', 'price_desc', 'name']).optional(),
     page: z.number().default(1),
     limit: z.number().default(50),
   }).optional()
@@ -41,6 +41,7 @@ export async function getCompanions(filters) {
   }
 
   const orderBy =
+    f.sortBy === 'random' ? sql`random()` :
     f.sortBy === 'price_asc' ? asc(companions.hourlyRate) :
     f.sortBy === 'price_desc' ? desc(companions.hourlyRate) :
     f.sortBy === 'name' ? asc(companions.displayName) :

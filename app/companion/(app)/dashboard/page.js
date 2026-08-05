@@ -1,221 +1,582 @@
 'use client'
 
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCompanionDashboardStats, getCompanionBookings, acceptBooking, rejectBooking } from '@/app/actions/bookings'
-import { getExtensionAnalytics } from '@/app/actions/extensions'
-import {
-  IndianRupee, Calendar, Clock, Star, ChevronRight,
-  Check, X, TrendingUp, Shield, User,
-  MapPin, Bell, Loader2, Sparkles,
-  CheckCircle2, BarChart3, XCircle, MessageCircle,
-  Zap, ArrowUpRight,
-} from 'lucide-react'
 import Link from 'next/link'
-import VerifyMeetingCard from '@/components/booking/VerifyMeetingCard'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  ArrowUpRight,
+  CalendarDays,
+  Check,
+  ChevronRight,
+  Clock3,
+  IndianRupee,
+  Loader2,
+  MessageCircle,
+  RotateCcw,
+  ShieldCheck,
+  Star,
+  BarChart3,
+  CircleGauge,
+  Sparkles,
+  TrendingUp,
+  UserRound,
+} from 'lucide-react'
+import {
+  acceptBooking,
+  getCompanionBookings,
+  getCompanionDashboardStats,
+  rejectBooking,
+} from '@/app/actions/bookings'
+import { getExtensionAnalytics } from '@/app/actions/extensions'
 import CompanionActiveBanner from '@/components/booking/CompanionActiveBanner'
+import VerifyMeetingCard from '@/components/booking/VerifyMeetingCard'
+import { formatCompactINR, formatINR, formatSignedINR } from '@/lib/format-currency'
 import { useUIStore } from '@/store/useUIStore'
 
-function getGreeting() {
+const ease = [0.16, 1, 0.3, 1]
+
+function greeting() {
   const hour = new Date().getHours()
   if (hour < 12) return 'Good morning'
   if (hour < 17) return 'Good afternoon'
   return 'Good evening'
 }
 
-function formatDate() {
-  return new Date().toLocaleDateString('en-IN', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+function formatDay(value) {
+  return new Date(value).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
   })
 }
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i = 0) => ({
-    opacity: 1, y: 0,
-    transition: { delay: i * 0.08, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
-  }),
-}
-
-const scaleIn = {
-  hidden: { opacity: 0, scale: 0.92 },
-  visible: (i = 0) => ({
-    opacity: 1, scale: 1,
-    transition: { delay: i * 0.08, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] },
-  }),
-}
-
-function TrustScoreRing({ score }) {
-  const radius = 42
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference - (score / 100) * circumference
-  const color = score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444'
-  const bgColor = score >= 80 ? '#d1fae5' : score >= 50 ? '#fef3c7' : '#fee2e2'
-
+function DashboardSkeleton() {
   return (
-    <motion.div
-      className="relative w-28 h-28 flex items-center justify-center"
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-    >
-      <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r={radius} fill="none" stroke={bgColor} strokeWidth="7" />
-        <motion.circle
-          cx="50" cy="50" r={radius} fill="none" stroke={color} strokeWidth="7"
-          strokeDasharray={circumference}
-          strokeLinecap="round"
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.2, delay: 0.5, ease: 'easeOut' }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <motion.span
-          className="text-2xl font-bold text-[var(--hana-charcoal)]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-        >
-          {score}
-        </motion.span>
-        <span className="text-[10px] text-[var(--hana-muted)] font-medium">Trust Score</span>
+    <div className="mx-auto max-w-[1400px] animate-pulse space-y-6" aria-label="Loading dashboard">
+      <div className="h-7 w-48 rounded-lg bg-black/[0.06]" />
+      <div className="h-32 rounded-[28px] bg-white/70" />
+      <div className="grid gap-4 lg:grid-cols-12">
+        <div className="h-[430px] rounded-[28px] bg-white/70 lg:col-span-7" />
+        <div className="h-[430px] rounded-[28px] bg-white/70 lg:col-span-5" />
       </div>
-    </motion.div>
+    </div>
   )
 }
 
-function StatCard({ label, value, icon: Icon, accent, sub, index }) {
+function StatusMessage({ onRetry }) {
   return (
-    <motion.div
-      variants={scaleIn}
-      custom={index}
-      whileHover={{ y: -4, scale: 1.02, boxShadow: '0 12px 24px -4px rgba(0,0,0,0.08)' }}
-      whileTap={{ scale: 0.98 }}
-      className="rounded-2xl p-5 border bg-white cursor-default select-none transition-colors"
-      style={{ borderColor: 'var(--hana-subtle)' }}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <motion.div
-          className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: `${accent}18`, color: accent }}
-          whileHover={{ rotate: 8, scale: 1.1 }}
-          transition={{ type: 'spring', stiffness: 300 }}
-        >
-          <Icon size={18} />
-        </motion.div>
-        <ArrowUpRight size={14} className="text-[var(--hana-subtle)]" />
+    <div role="alert" className="flex flex-col gap-4 rounded-[24px] bg-[#fff7f7] p-5 text-[#7d2929] sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="font-semibold">Dashboard data could not be loaded</p>
+        <p className="mt-1 text-sm text-[#8f4b4b]">Check your connection and try again. Your bookings have not changed.</p>
       </div>
-      <p className="text-2xl sm:text-3xl font-bold text-[var(--hana-charcoal)] tracking-tight">{value}</p>
-      <p className="text-xs mt-1 text-[var(--hana-muted)] font-medium">{label}</p>
-      {sub && <p className="text-[10px] mt-0.5 text-[var(--hana-muted)]">{sub}</p>}
-    </motion.div>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#7d2929] px-4 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-[#7d2929] focus-visible:ring-offset-2"
+      >
+        <RotateCcw size={15} aria-hidden="true" /> Try again
+      </button>
+    </div>
   )
 }
 
-function PendingRequestCard({ request, onAccept, onReject, acceptPending, rejectPending }) {
-  const [showActions, setShowActions] = useState(true)
+function MetricStrip({ stats }) {
+  const metrics = [
+    {
+      label: 'This month',
+      value: formatINR(stats?.monthlyEarnings),
+      detail: 'Earnings',
+      icon: IndianRupee,
+    },
+    {
+      label: 'Needs attention',
+      value: stats?.pendingRequests ?? 0,
+      detail: 'Requests',
+      icon: Clock3,
+    },
+    {
+      label: 'On your calendar',
+      value: stats?.upcomingBookings ?? 0,
+      detail: 'Upcoming',
+      icon: CalendarDays,
+    },
+    {
+      label: `${stats?.totalReviews ?? 0} client reviews`,
+      value: (stats?.averageRating ?? 0).toFixed(1),
+      detail: 'Rating',
+      icon: Star,
+    },
+  ]
 
   return (
-    <motion.div
+    <section aria-label="Monthly summary" className="grid grid-cols-2 overflow-hidden rounded-[26px] bg-hana-gradient text-white shadow-[0_18px_44px_-28px_rgba(233,30,99,0.65)] lg:grid-cols-4">
+      {metrics.map(({ label, value, detail, icon: Icon }, index) => (
+        <div key={detail} className={`relative px-4 py-5 sm:px-6 ${index % 2 ? 'border-l border-white/10' : ''} ${index > 1 ? 'border-t border-white/10 lg:border-t-0' : ''} ${index === 2 ? 'lg:border-l' : ''}`}>
+          <div className="mb-4 flex items-center justify-between text-white/55">
+            <span className="text-xs font-medium">{label}</span>
+            <Icon size={16} strokeWidth={1.7} aria-hidden="true" />
+          </div>
+          <p className="font-heading text-2xl font-semibold tracking-[-0.03em] tabular-nums sm:text-[1.75rem]">{value}</p>
+          <p className="mt-1 text-xs text-white/60">{detail}</p>
+        </div>
+      ))}
+    </section>
+  )
+}
+
+const STATUS_GROUPS = [
+  { key: 'COMPLETED', label: 'Completed', color: '#e91e63' },
+  { key: 'CONFIRMED', label: 'Scheduled', color: '#ff6b8a' },
+  { key: 'PENDING_ACCEPTANCE', label: 'Pending', color: '#f5a623' },
+  { key: 'CANCELLED', label: 'Closed', color: '#9e8a92' },
+]
+
+function WeeklyBars({ trend = [] }) {
+  const maxEarnings = Math.max(1, ...trend.map((day) => Math.abs(day.earnings)))
+  const maxBookings = Math.max(1, ...trend.map((day) => Math.abs(day.bookings)))
+  const total = trend.reduce((sum, day) => sum + day.earnings, 0)
+
+  return (
+    <section className="overflow-hidden rounded-[28px] bg-white p-5 shadow-[0_18px_60px_-42px_rgba(66,25,43,0.45)] sm:p-7 lg:col-span-8" aria-labelledby="weekly-trend-title">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 id="weekly-trend-title" className="font-heading text-lg font-semibold tracking-[-0.02em] text-[#20171b]">Seven-day momentum</h2>
+          <p className="mt-1 max-w-xl text-sm text-[#75636b]">Completed value rises above zero; cancelled, rejected, and expired opportunity value falls below it.</p>
+        </div>
+        <div className="text-right">
+          <p className={`font-heading text-xl font-semibold tabular-nums ${total < 0 ? 'text-[#b64952]' : 'text-[#20171b]'}`}>{formatSignedINR(total)}</p>
+          <p className="text-[11px] text-[#8b7680]">net movement</p>
+        </div>
+      </div>
+
+      <div className="mt-7" role="img" aria-label="Diverging bar chart of net bookings and value movement for the last seven days">
+        <div className="relative flex h-52 gap-2 sm:gap-4">
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 h-px bg-[#d9cbd0]" aria-hidden="true" />
+          {trend.map((day) => {
+            const bookingHeight = day.bookings === 0 ? 0 : Math.max(5, (Math.abs(day.bookings) / maxBookings) * 46)
+            const earningsHeight = day.earnings === 0 ? 0 : Math.max(5, (Math.abs(day.earnings) / maxEarnings) * 46)
+            const signedBookings = `${day.bookings > 0 ? '+' : ''}${day.bookings}`
+            return (
+              <div key={day.date} className="relative min-w-0 flex-1" title={`${day.label}: ${signedBookings} net bookings, ${formatSignedINR(day.earnings)} net value`}>
+                <div className="absolute inset-0 flex justify-center gap-1 sm:gap-1.5">
+                  <span className="relative h-full w-2.5 sm:w-3.5">
+                    <motion.span
+                      initial={false}
+                      animate={{ height: `${bookingHeight}%` }}
+                      transition={{ duration: 0.45, ease }}
+                      style={day.bookings >= 0 ? { bottom: '50%' } : { top: '50%' }}
+                      className={`absolute inset-x-0 rounded-full ${day.bookings >= 0 ? 'bg-[#88aa99]' : 'bg-[#e7a05c]'}`}
+                    />
+                  </span>
+                  <span className="relative h-full w-3.5 sm:w-5">
+                    <motion.span
+                      initial={false}
+                      animate={{ height: `${earningsHeight}%` }}
+                      transition={{ duration: 0.55, ease }}
+                      style={day.earnings >= 0 ? { bottom: '50%' } : { top: '50%' }}
+                      className={`absolute inset-x-0 rounded-full shadow-[0_8px_18px_-10px_rgba(91,35,55,0.5)] ${day.earnings >= 0 ? 'bg-[var(--hana-blush-dark)]' : 'bg-[#c95761]'}`}
+                    />
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="mt-2 flex gap-2 sm:gap-4">
+          {trend.map((day) => <span key={day.date} className="min-w-0 flex-1 text-center text-[10px] font-medium text-[#8b7680]">{day.label}</span>)}
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[#f1e7eb] pt-4 text-[11px] text-[#75636b]">
+        <span className="inline-flex items-center gap-2"><i className="size-2 rounded-full bg-[var(--hana-blush-dark)]" /> Net value</span>
+        <span className="inline-flex items-center gap-2"><i className="size-2 rounded-full bg-[#88aa99]" /> Net bookings</span>
+        <span className="inline-flex items-center gap-2"><i className="size-2 rounded-full bg-[#c95761]" /> Closed / lost</span>
+      </div>
+    </section>
+  )
+}
+
+function BookingDonut({ stats }) {
+  const countFor = (status) => stats?.statusBreakdown?.find((item) => item.status === status)?.count ?? 0
+  const values = [
+    countFor('COMPLETED'),
+    countFor('CONFIRMED') + countFor('IN_PROGRESS'),
+    countFor('PENDING_ACCEPTANCE') + countFor('AWAITING_PAYMENT'),
+    countFor('CANCELLED') + countFor('REJECTED') + countFor('EXPIRED'),
+  ]
+  const total = Math.max(1, values.reduce((sum, value) => sum + value, 0))
+  let cursor = 0
+  const stops = STATUS_GROUPS.map((group, index) => {
+    const start = cursor
+    cursor += (values[index] / total) * 100
+    return `${group.color} ${start}% ${cursor}%`
+  }).join(', ')
+  const chartBackground = values.some(Boolean) ? `conic-gradient(${stops})` : 'var(--hana-ivory)'
+
+  return (
+    <section className="rounded-[28px] bg-[#f3e4ec] p-5 sm:p-7 lg:col-span-4" aria-labelledby="booking-mix-title">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 id="booking-mix-title" className="font-heading text-lg font-semibold text-[#20171b]">Booking mix</h2>
+          <p className="mt-1 text-sm text-[#75636b]">All-time request outcomes.</p>
+        </div>
+        <CircleGauge size={19} className="text-[var(--hana-blush-dark)]" />
+      </div>
+      <div className="mt-6 flex items-center gap-6">
+        <div className="relative size-36 shrink-0 rounded-full" style={{ background: chartBackground }} role="img" aria-label={`Donut chart of ${stats?.totalRequests ?? 0} total requests`}>
+          <div className="absolute inset-[18px] flex flex-col items-center justify-center rounded-full bg-[#f3e4ec]">
+            <strong className="font-heading text-3xl font-semibold tabular-nums text-[#20171b]">{stats?.totalRequests ?? 0}</strong>
+            <span className="text-[10px] font-medium text-[#8b7680]">requests</span>
+          </div>
+        </div>
+        <div className="min-w-0 flex-1 space-y-2.5">
+          {STATUS_GROUPS.map((group, index) => (
+            <div key={group.key} className="flex items-center gap-2 text-xs">
+              <span className="size-2.5 rounded-full" style={{ backgroundColor: group.color }} />
+              <span className="flex-1 text-[#695861]">{group.label}</span>
+              <strong className="tabular-nums text-[#20171b]">{values[index]}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ActivityMix({ activities = [] }) {
+  const maxCount = Math.max(1, ...activities.map((item) => item.count))
+  return (
+    <section className="rounded-[28px] bg-white p-5 shadow-[0_18px_60px_-42px_rgba(66,25,43,0.45)] sm:p-7 lg:col-span-5" aria-labelledby="activity-mix-title">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 id="activity-mix-title" className="font-heading text-lg font-semibold text-[#20171b]">Experience demand</h2>
+          <p className="mt-1 text-sm text-[#75636b]">Your most requested formats.</p>
+        </div>
+        <BarChart3 size={19} className="text-[var(--hana-blush-dark)]" />
+      </div>
+      <div className="mt-6 space-y-4">
+        {activities.length === 0 ? <p className="py-10 text-center text-sm text-[#8b7680]">Activity trends will appear after your first requests.</p> : activities.map((item) => (
+          <div key={item.activity}>
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+              <span className="truncate font-medium text-[#45343b]">{item.activity}</span>
+              <span className="shrink-0 tabular-nums text-[#8b7680]">{item.count} requests · {item.hours.toFixed(1)}h</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-[var(--hana-ivory)]">
+              <motion.div initial={false} animate={{ scaleX: item.count / maxCount }} transition={{ duration: 0.4, ease }} className="h-full origin-left rounded-full bg-[var(--hana-rose)]" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function ServicePulse({ stats, extensionStats }) {
+  const signals = [
+    { label: 'Completion', value: stats?.completionRate ?? 0 },
+    { label: 'Acceptance', value: Math.round(stats?.acceptanceRate ?? 0) },
+    { label: 'Trust', value: Math.round(stats?.trustScore ?? 0) },
+  ]
+  return (
+    <section className="relative overflow-hidden rounded-[28px] bg-hana-gradient p-5 text-white shadow-[0_24px_60px_-36px_rgba(233,30,99,0.8)] sm:p-7 lg:col-span-7" aria-labelledby="service-pulse-title">
+      <div className="absolute -right-16 -top-20 size-56 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative flex flex-col gap-7 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-w-sm">
+          <div className="flex items-center gap-2">
+            <Sparkles size={17} className="text-white/80" />
+            <h2 id="service-pulse-title" className="font-heading text-lg font-semibold">Service pulse</h2>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-white/72">Reliability is your strongest growth signal. Keep decisions prompt and sessions consistent.</p>
+          <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-white/65">
+            <span><strong className="mr-1 text-white">{stats?.completedBookings ?? 0}</strong>completed</span>
+            <span><strong className="mr-1 text-white">{extensionStats?.completedExtensions ?? 0}</strong>extensions</span>
+            <span><strong className="mr-1 text-white">{formatCompactINR(extensionStats?.extensionRevenue ?? 0)}</strong>extension value</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {signals.map((signal) => (
+            <div key={signal.label} className="flex size-24 flex-col items-center justify-center rounded-full border border-white/18 bg-white/10 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <strong className="font-heading text-xl tabular-nums">{signal.value}%</strong>
+              <span className="mt-1 text-[9px] font-medium text-white/65">{signal.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function AnalyticsBoard({ stats, extensionStats }) {
+  return (
+    <div className="grid grid-flow-dense grid-cols-1 gap-5 lg:grid-cols-12" aria-label="Performance analytics">
+      <WeeklyBars trend={stats?.weeklyTrend} />
+      <BookingDonut stats={stats} />
+      <ActivityMix activities={stats?.activityBreakdown} />
+      <ServicePulse stats={stats} extensionStats={extensionStats} />
+    </div>
+  )
+}
+
+function RequestCard({ request, onAccept, onReject, accepting, rejecting }) {
+  const [confirmDecline, setConfirmDecline] = useState(false)
+  const busy = accepting || rejecting
+
+  return (
+    <motion.article
       layout
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0 }}
-      transition={{ duration: 0.3 }}
-      whileHover={{ scale: 1.01, borderColor: 'rgba(236, 72, 153, 0.3)' }}
-      className="p-4 rounded-xl border bg-white/80 backdrop-blur-sm transition-all"
-      style={{ borderColor: 'var(--hana-subtle)' }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.22, ease }}
+      className="rounded-[20px] bg-[#faf7f8] p-4 sm:p-5"
     >
-      <div className="flex items-center gap-3 mb-3">
-        <motion.div
-          whileHover={{ scale: 1.1 }}
-          className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-sm font-bold text-pink-600 shrink-0"
-        >
+      <div className="flex items-start gap-3">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-[#ead9df] font-heading text-sm font-semibold text-[#7c2848]">
           {request.client?.name?.[0] || '?'}
-        </motion.div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[var(--hana-charcoal)] truncate">{request.client?.name || 'Unknown'}</p>
-          <p className="text-xs text-[var(--hana-muted)]">{request.activityType}</p>
         </div>
-        <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-lg">
-          <Shield className="w-3 h-3 text-emerald-500" />
-          <span className="text-[10px] font-bold text-emerald-600">{request.client?.trustScore ?? 100}%</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 className="truncate text-sm font-semibold text-[#20171b]">{request.client?.name || 'New client'}</h3>
+              <p className="mt-0.5 text-xs text-[#75636b]">{request.activityType}</p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--hana-ivory)] px-2 py-1 text-[11px] font-semibold text-[var(--hana-blush-dark)]">
+              <ShieldCheck size={12} aria-hidden="true" /> {request.client?.trustScore ?? 100} trust
+            </span>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#5f5057]">
+            <span className="inline-flex items-center gap-1.5"><CalendarDays size={13} /> {formatDay(request.date)}</span>
+            <span className="inline-flex items-center gap-1.5"><Clock3 size={13} /> {request.durationHours} hours</span>
+            <strong className="ml-auto text-sm font-semibold text-[#20171b]">{formatINR(request.totalAmount)}</strong>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-[var(--hana-ash)] mb-3">
-        <span className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-lg">
-          <Calendar size={12} /> {new Date(request.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-        </span>
-        <span className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-lg">
-          <Clock size={12} /> {request.durationHours}h
-        </span>
-        <span className="ml-auto text-sm font-bold text-[var(--hana-charcoal)]">
-          ₹{request.totalAmount?.toLocaleString('en-IN')}
-        </span>
+      <AnimatePresence mode="wait" initial={false}>
+        {confirmDecline ? (
+          <motion.div key="confirm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-4 flex flex-col gap-3 rounded-2xl bg-white p-3 sm:flex-row sm:items-center">
+            <p className="flex-1 text-xs leading-5 text-[#5f5057]">Decline this request because you are unavailable?</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setConfirmDecline(false)} className="min-h-10 flex-1 rounded-xl px-3 text-xs font-semibold text-[#5f5057] hover:bg-[#f4eef0] sm:flex-none">Keep</button>
+              <button type="button" onClick={onReject} disabled={busy} className="min-h-10 flex-1 rounded-xl bg-[#7d2929] px-3 text-xs font-semibold text-white disabled:opacity-50 sm:flex-none">
+                {rejecting ? 'Declining…' : 'Confirm decline'}
+              </button>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div key="actions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-4 flex gap-2">
+            <button type="button" onClick={() => setConfirmDecline(true)} disabled={busy} className="min-h-11 flex-1 rounded-xl bg-white px-4 text-sm font-semibold text-[#66545c] ring-1 ring-inset ring-[#ded1d6] hover:bg-[#f6f1f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a33b63] disabled:opacity-50">
+              Decline
+            </button>
+            <button type="button" onClick={onAccept} disabled={busy} className="inline-flex min-h-11 flex-[1.35] items-center justify-center gap-2 rounded-xl bg-[var(--hana-blush-dark)] px-4 text-sm font-semibold text-white hover:bg-[#c2185b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hana-blush-dark)] focus-visible:ring-offset-2 disabled:opacity-50">
+              {accepting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+              {accepting ? 'Accepting…' : 'Accept request'}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.article>
+  )
+}
+
+function RequestQueue({ requests, accept, reject }) {
+  return (
+    <section className="rounded-[28px] bg-white p-4 shadow-[0_18px_60px_-42px_rgba(66,25,43,0.45)] sm:p-6 lg:col-span-7" aria-labelledby="request-queue-title">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h2 id="request-queue-title" className="font-heading text-lg font-semibold tracking-[-0.02em] text-[#20171b]">Request queue</h2>
+            {requests.length > 0 && <span className="rounded-lg bg-[#f6e5eb] px-2 py-1 text-[11px] font-semibold text-[#8f3155]">{requests.length} waiting</span>}
+          </div>
+          <p className="mt-1 text-sm text-[#75636b]">Review the newest requests while dates are still open.</p>
+        </div>
+        <Link href="/companion/bookings" className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl px-2 text-xs font-semibold text-[#8f3155] hover:bg-[#faf0f4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a33b63]">
+          All requests <ChevronRight size={14} />
+        </Link>
       </div>
 
-      <div className="flex items-center gap-2">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onReject}
-          disabled={rejectPending}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-red-200 text-red-500 text-sm font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
-        >
-          <X size={15} /> Decline
-        </motion.button>
-        <motion.button
-          whileHover={{ scale: 1.05, boxShadow: '0 6px 20px rgba(16, 185, 129, 0.3)' }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onAccept}
-          disabled={acceptPending}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-colors shadow-md shadow-emerald-500/20"
-        >
-          {acceptPending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-          Accept
-        </motion.button>
+      <div className="space-y-3">
+        <AnimatePresence initial={false}>
+          {requests.length === 0 ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex min-h-56 flex-col items-center justify-center rounded-[20px] bg-[#faf7f8] px-6 text-center">
+              <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-[var(--hana-ivory)] text-[var(--hana-blush-dark)]">
+                <Check size={20} aria-hidden="true" />
+              </div>
+              <h3 className="text-sm font-semibold text-[#20171b]">You are caught up</h3>
+              <p className="mt-1 max-w-xs text-sm leading-6 text-[#75636b]">New booking requests will appear here automatically.</p>
+            </motion.div>
+          ) : requests.slice(0, 4).map((request) => (
+            <RequestCard
+              key={request.id}
+              request={request}
+              onAccept={() => accept.mutate(request.id)}
+              onReject={() => reject.mutate({ id: request.id, reason: 'Not available' })}
+              accepting={accept.isPending && accept.variables === request.id}
+              rejecting={reject.isPending && reject.variables?.id === request.id}
+            />
+          ))}
+        </AnimatePresence>
       </div>
-    </motion.div>
+    </section>
+  )
+}
+
+function UpcomingSchedule({ bookings }) {
+  return (
+    <section className="rounded-[28px] bg-[#f0e5e9] p-4 sm:p-6 lg:col-span-5" aria-labelledby="upcoming-title">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 id="upcoming-title" className="font-heading text-lg font-semibold tracking-[-0.02em] text-[#20171b]">Upcoming schedule</h2>
+          <p className="mt-1 text-sm text-[#6f5d65]">Your next confirmed sessions.</p>
+        </div>
+        <Link href="/companion/calendar" aria-label="Open calendar" className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/70 text-[#6f304a] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a33b63]">
+          <CalendarDays size={17} strokeWidth={1.8} />
+        </Link>
+      </div>
+
+      <div className="space-y-2.5">
+        {bookings.length === 0 ? (
+          <div className="flex min-h-56 flex-col items-center justify-center rounded-[20px] bg-white/55 px-6 text-center">
+            <CalendarDays className="mb-4 text-[#a88d98]" size={26} strokeWidth={1.5} />
+            <h3 className="text-sm font-semibold text-[#20171b]">No confirmed sessions</h3>
+            <p className="mt-1 text-sm leading-6 text-[#75636b]">Accepted and paid bookings will build your schedule here.</p>
+          </div>
+        ) : bookings.slice(0, 4).map((booking, index) => (
+          <article key={booking.id} className="rounded-[20px] bg-white p-4 shadow-[0_12px_30px_-28px_rgba(66,25,43,0.6)]">
+            <div className="flex gap-3">
+              <div className="flex w-12 shrink-0 flex-col items-center justify-center rounded-[14px] bg-[var(--hana-blush-dark)] py-2 text-white">
+                <span className="text-[10px] text-white/60">{new Date(booking.date).toLocaleDateString('en-IN', { month: 'short' })}</span>
+                <strong className="text-lg leading-5 tabular-nums">{new Date(booking.date).getDate()}</strong>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold text-[#20171b]">{booking.client?.name || 'Client'}</h3>
+                    <p className="mt-0.5 truncate text-xs text-[#75636b]">{booking.activityType}</p>
+                  </div>
+                  {index === 0 && <span className="rounded-lg bg-[var(--hana-ivory)] px-2 py-1 text-[10px] font-semibold text-[var(--hana-blush-dark)]">Next</span>}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#695861]">
+                  <span className="inline-flex items-center gap-1"><Clock3 size={12} /> {booking.startTime}–{booking.endTime}</span>
+                  <strong className="ml-auto text-xs text-[#20171b]">{formatINR(booking.totalAmount)}</strong>
+                </div>
+              </div>
+            </div>
+            {!booking.codeVerified && <VerifyMeetingCard bookingId={booking.id} codeVerified={booking.codeVerified} />}
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function PerformancePanel({ stats, extensionStats }) {
+  const acceptance = Math.max(0, Math.min(100, stats?.acceptanceRate ?? 100))
+  const cancellation = Math.max(0, Math.min(100, stats?.cancellationRate ?? 0))
+  const trust = stats?.trustScore ?? 100
+
+  return (
+    <section className="grid overflow-hidden rounded-[28px] bg-white lg:grid-cols-[1.35fr_0.65fr]" aria-labelledby="performance-title">
+      <div className="p-5 sm:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 id="performance-title" className="font-heading text-lg font-semibold tracking-[-0.02em] text-[#20171b]">Service health</h2>
+            <p className="mt-1 text-sm text-[#75636b]">A clear view of reliability and client confidence.</p>
+          </div>
+          <div className="flex items-baseline gap-2 rounded-2xl bg-[var(--hana-ivory)] px-4 py-3 text-[var(--hana-blush-dark)]">
+            <strong className="font-heading text-2xl tabular-nums">{trust}</strong>
+            <span className="text-xs font-semibold">trust score</span>
+          </div>
+        </div>
+
+        <div className="mt-7 grid gap-6 sm:grid-cols-2">
+          <div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[#5f5057]">Acceptance rate</span>
+              <strong className="tabular-nums text-[var(--hana-blush-dark)]">{acceptance.toFixed(0)}%</strong>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--hana-ivory)]">
+              <motion.div initial={false} animate={{ scaleX: acceptance / 100 }} transition={{ duration: 0.35, ease }} className="h-full origin-left rounded-full bg-[var(--hana-rose)]" />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[#5f5057]">Cancellation rate</span>
+              <strong className="tabular-nums text-[#8b3e3e]">{cancellation.toFixed(0)}%</strong>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f5e7e7]">
+              <motion.div initial={false} animate={{ scaleX: cancellation / 100 }} transition={{ duration: 0.35, ease }} className="h-full origin-left rounded-full bg-[#b66565]" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-7 flex flex-wrap gap-x-8 gap-y-3 border-t border-[#eee5e8] pt-5 text-sm">
+          <span className="text-[#75636b]"><strong className="mr-1.5 text-[#20171b]">{stats?.completedBookings ?? 0}</strong>completed bookings</span>
+          <span className="text-[#75636b]"><strong className="mr-1.5 text-[#20171b]">{stats?.totalReviews ?? 0}</strong>reviews received</span>
+          {extensionStats?.totalExtensions > 0 && (
+            <span className="text-[#75636b]"><strong className="mr-1.5 text-[#20171b]">{formatINR(extensionStats.extensionRevenue)}</strong>extension revenue</span>
+          )}
+        </div>
+      </div>
+
+      <aside className="bg-[#faf7f8] p-5 sm:p-7" aria-label="Quick actions">
+        <h3 className="text-sm font-semibold text-[#20171b]">Common tasks</h3>
+        <nav className="mt-4 space-y-1">
+          {[
+            { label: 'Manage calendar', href: '/companion/calendar', icon: CalendarDays },
+            { label: 'Open messages', href: '/companion/messages', icon: MessageCircle },
+            { label: 'View earnings', href: '/companion/earnings', icon: TrendingUp },
+            { label: 'Edit public profile', href: '/companion/profile', icon: UserRound },
+          ].map(({ label, href, icon: Icon }) => (
+            <Link key={href} href={href} className="group flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium text-[#5f5057] hover:bg-white hover:text-[#20171b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a33b63]">
+              <Icon size={16} strokeWidth={1.7} className="text-[#9b7886] group-hover:text-[#8f3155]" />
+              <span className="flex-1">{label}</span>
+              <ArrowUpRight size={14} className="text-[#b6a2aa] transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            </Link>
+          ))}
+        </nav>
+      </aside>
+    </section>
   )
 }
 
 export default function CompanionDashboard() {
-  const [isOnline, setIsOnline] = useState(true)
   const queryClient = useQueryClient()
-  const addToast = useUIStore((s) => s.addToast)
+  const addToast = useUIStore((state) => state.addToast)
 
-  const { data: stats, isLoading } = useQuery({
+  const statsQuery = useQuery({
     queryKey: ['companion-dashboard-stats'],
     queryFn: getCompanionDashboardStats,
   })
-
-  const { data: extensionStats } = useQuery({
+  const extensionQuery = useQuery({
     queryKey: ['extension-analytics'],
     queryFn: getExtensionAnalytics,
   })
-
-  const { data: pendingBookings = [] } = useQuery({
+  const pendingQuery = useQuery({
     queryKey: ['companion-bookings', 'PENDING_ACCEPTANCE'],
     queryFn: () => getCompanionBookings({ status: 'PENDING_ACCEPTANCE' }),
     refetchInterval: 15000,
   })
-
-  const { data: confirmedBookings = [] } = useQuery({
+  const confirmedQuery = useQuery({
     queryKey: ['companion-bookings', 'CONFIRMED'],
     queryFn: () => getCompanionBookings({ status: 'CONFIRMED' }),
   })
+
+  const refreshDashboard = () => {
+    statsQuery.refetch()
+    extensionQuery.refetch()
+    pendingQuery.refetch()
+    confirmedQuery.refetch()
+  }
 
   const accept = useMutation({
     mutationFn: acceptBooking,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
       queryClient.invalidateQueries({ queryKey: ['companion-dashboard-stats'] })
-      addToast({ type: 'success', title: 'Booking Accepted', message: 'Client will be notified to complete payment.' })
+      addToast({ type: 'success', title: 'Booking accepted', message: 'The client can now complete payment.' })
     },
-    onError: (err) => addToast({ type: 'error', title: 'Error', message: err.message }),
+    onError: (error) => addToast({ type: 'error', title: 'Could not accept booking', message: error.message }),
   })
 
   const reject = useMutation({
@@ -223,398 +584,46 @@ export default function CompanionDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companion-bookings'] })
       queryClient.invalidateQueries({ queryKey: ['companion-dashboard-stats'] })
-      addToast({ type: 'info', title: 'Booking Declined', message: 'The client has been notified.' })
+      addToast({ type: 'info', title: 'Booking declined', message: 'The client has been notified.' })
     },
-    onError: (err) => addToast({ type: 'error', title: 'Error', message: err.message }),
+    onError: (error) => addToast({ type: 'error', title: 'Could not decline booking', message: error.message }),
   })
 
-  if (isLoading) {
-    return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center gap-3">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
-        >
-          <Loader2 className="w-8 h-8 text-pink-500" />
-        </motion.div>
-        <p className="text-sm text-[var(--hana-muted)]">Loading your dashboard...</p>
-      </div>
-    )
-  }
+  if (statsQuery.isLoading) return <DashboardSkeleton />
 
-  const companionName = stats?.companion?.displayName || 'Companion'
+  const hasError = statsQuery.isError || pendingQuery.isError || confirmedQuery.isError
+  const stats = statsQuery.data
+  const pendingBookings = pendingQuery.data ?? []
+  const confirmedBookings = confirmedQuery.data ?? []
+  const companionName = stats?.companion?.displayName || 'there'
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-8">
-      {/* Active Session / Upcoming Banner */}
-      <CompanionActiveBanner />
-
-      {/* New Requests Banner */}
-      <AnimatePresence>
-        {pendingBookings.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -12, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -12, height: 0 }}
-            className="overflow-hidden"
-          >
-            <Link href="/companion/bookings">
-              <motion.div
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                className="relative flex items-center gap-3 px-5 py-4 rounded-2xl bg-gradient-to-r from-pink-500 via-pink-500 to-purple-500 text-white shadow-lg shadow-pink-500/20 cursor-pointer overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_50%,rgba(255,255,255,0.15),transparent)] pointer-events-none" />
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-                  className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0"
-                >
-                  <Bell size={20} className="text-white" />
-                </motion.div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold">
-                    {pendingBookings.length} new request{pendingBookings.length !== 1 ? 's' : ''} waiting
-                  </p>
-                  <p className="text-xs text-white/80 mt-0.5">Tap to review and respond</p>
-                </div>
-                <ChevronRight size={18} className="text-white/70" />
-              </motion.div>
-            </Link>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex items-center justify-between"
-      >
+    <div className="mx-auto max-w-[1400px] space-y-5 pb-8 sm:space-y-6">
+      <header className="flex flex-col gap-4 pt-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <motion.h1
-            className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--hana-charcoal)]"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            {getGreeting()}, <span className="bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">{companionName}</span>
-          </motion.h1>
-          <motion.p
-            className="mt-1 text-sm text-[var(--hana-muted)]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            {formatDate()}
-          </motion.p>
+          <p className="mb-1 text-sm font-medium text-[#8f3155]">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <h1 className="max-w-3xl text-balance font-heading text-[1.75rem] font-semibold leading-tight tracking-[-0.035em] text-[#20171b] sm:text-[2.25rem]">
+            {greeting()}, {companionName}
+          </h1>
+          <p className="mt-2 max-w-xl text-pretty text-sm leading-6 text-[#75636b]">Your next decisions, sessions, and service health in one place.</p>
         </div>
+        <Link href="/companion/calendar" className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#5f3445] shadow-[0_10px_28px_-20px_rgba(66,25,43,0.5)] hover:bg-[#fffafb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a33b63] focus-visible:ring-offset-2">
+          <CalendarDays size={16} strokeWidth={1.8} /> Manage availability
+        </Link>
+      </header>
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsOnline(!isOnline)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 border ${
-            isOnline
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-              : 'bg-gray-50 border-gray-200 text-gray-500'
-          }`}
-        >
-          <motion.span
-            className="w-2.5 h-2.5 rounded-full"
-            animate={{
-              backgroundColor: isOnline ? '#10b981' : '#9ca3af',
-              scale: isOnline ? [1, 1.3, 1] : 1,
-            }}
-            transition={{ scale: { repeat: isOnline ? Infinity : 0, duration: 2 } }}
-          />
-          {isOnline ? 'Online' : 'Offline'}
-        </motion.button>
-      </motion.header>
+      {hasError && <StatusMessage onRetry={refreshDashboard} />}
 
-      {/* Quick Stats */}
-      <motion.section
-        className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
-        initial="hidden" animate="visible"
-        variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
-      >
-        <StatCard index={0} label="Monthly Earnings" value={`₹${(stats?.monthlyEarnings ?? 0).toLocaleString('en-IN')}`} icon={IndianRupee} accent="#4ade80" />
-        <StatCard index={1} label="Pending Requests" value={stats?.pendingRequests ?? 0} icon={Zap} accent="#f59e0b" />
-        <StatCard index={2} label="Upcoming Bookings" value={stats?.upcomingBookings ?? 0} icon={Calendar} accent="#ec4899" />
-        <StatCard index={3} label="Average Rating" value={(stats?.averageRating ?? 0).toFixed(1)} icon={Star} accent="#f59e0b" sub={`${stats?.totalReviews ?? 0} reviews`} />
-      </motion.section>
+      <CompanionActiveBanner />
+      <MetricStrip stats={stats} />
+      <AnalyticsBoard stats={stats} extensionStats={extensionQuery.data} />
 
-      {/* Trust Score & Performance */}
-      <motion.section
-        className="grid grid-cols-1 md:grid-cols-3 gap-4"
-        initial="hidden" animate="visible"
-        variants={{ visible: { transition: { staggerChildren: 0.1, delayChildren: 0.3 } } }}
-      >
-        {/* Trust Score */}
-        <motion.div
-          variants={fadeUp}
-          whileHover={{ y: -3 }}
-          className="rounded-2xl border bg-white p-6 flex flex-col items-center transition-shadow hover:shadow-lg"
-          style={{ borderColor: 'var(--hana-subtle)' }}
-        >
-          <TrustScoreRing score={stats?.trustScore ?? 100} />
-          <p className="text-xs text-[var(--hana-muted)] mt-3 text-center max-w-[180px]">
-            Based on reliability, reviews & response time
-          </p>
-        </motion.div>
-
-        {/* Performance Metrics */}
-        <motion.div
-          variants={fadeUp}
-          whileHover={{ y: -3 }}
-          className="rounded-2xl border bg-white p-6 space-y-5 transition-shadow hover:shadow-lg"
-          style={{ borderColor: 'var(--hana-subtle)' }}
-        >
-          <h3 className="text-sm font-bold text-[var(--hana-charcoal)] flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-[var(--hana-blush-dark)]" /> Performance
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-[var(--hana-muted)] flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Acceptance Rate
-                </span>
-                <span className="text-sm font-bold text-emerald-600">{(stats?.acceptanceRate ?? 100).toFixed(0)}%</span>
-              </div>
-              <div className="h-2.5 bg-emerald-100 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${stats?.acceptanceRate ?? 100}%` }}
-                  transition={{ duration: 1, delay: 0.5, ease: 'easeOut' }}
-                />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-[var(--hana-muted)] flex items-center gap-1.5">
-                  <XCircle className="w-3.5 h-3.5 text-red-400" /> Cancellation Rate
-                </span>
-                <span className="text-sm font-bold text-red-500">{(stats?.cancellationRate ?? 0).toFixed(0)}%</span>
-              </div>
-              <div className="h-2.5 bg-red-100 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-red-300 to-red-400 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${stats?.cancellationRate ?? 0}%` }}
-                  transition={{ duration: 1, delay: 0.6, ease: 'easeOut' }}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-              <span className="text-xs text-[var(--hana-muted)] flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-blue-500" /> Completed
-              </span>
-              <span className="text-lg font-bold text-blue-600">{stats?.completedBookings ?? 0}</span>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div
-          variants={fadeUp}
-          whileHover={{ y: -3 }}
-          className="rounded-2xl border bg-white p-6 space-y-4 transition-shadow hover:shadow-lg"
-          style={{ borderColor: 'var(--hana-subtle)' }}
-        >
-          <h3 className="text-sm font-bold text-[var(--hana-charcoal)] flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-500" /> Quick Actions
-          </h3>
-          <div className="space-y-2.5">
-            {[
-              { label: 'View All Bookings', href: '/companion/bookings', icon: Calendar, color: 'pink' },
-              { label: 'Messages', href: '/companion/messages', icon: MessageCircle, color: 'blue' },
-              { label: 'Earnings Report', href: '/companion/earnings', icon: IndianRupee, color: 'emerald' },
-              { label: 'Edit Profile', href: '/companion/profile', icon: User, color: 'purple' },
-            ].map((link, i) => {
-              const Icon = link.icon
-              return (
-                <motion.div key={link.href} whileHover={{ x: 4, scale: 1.01 }} whileTap={{ scale: 0.98 }}>
-                  <Link href={link.href}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-transparent hover:border-pink-100 hover:bg-pink-50/40 transition-all group"
-                  >
-                    <div className={`w-9 h-9 rounded-xl bg-${link.color}-50 flex items-center justify-center text-${link.color}-500 group-hover:scale-110 transition-transform`}>
-                      <Icon size={16} />
-                    </div>
-                    <span className="text-sm font-medium text-[var(--hana-ash)] group-hover:text-[var(--hana-charcoal)] transition-colors flex-1">
-                      {link.label}
-                    </span>
-                    <ChevronRight size={14} className="text-[var(--hana-subtle)] group-hover:text-pink-400 transition-colors" />
-                  </Link>
-                </motion.div>
-              )
-            })}
-          </div>
-        </motion.div>
-      </motion.section>
-
-      {/* Pending Requests + Upcoming */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-        {/* Pending Requests */}
-        <motion.section
-          className="lg:col-span-2 rounded-2xl border p-5 bg-white/90 backdrop-blur-sm"
-          style={{ borderColor: 'var(--hana-subtle)' }}
-          initial="hidden" animate="visible" variants={fadeUp} custom={5}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-[var(--hana-charcoal)] flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-500" />
-              Pending Requests
-            </h2>
-            {pendingBookings.length > 0 && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="text-xs font-bold px-2.5 py-1 rounded-full bg-pink-100 text-pink-600 border border-pink-200"
-              >
-                {pendingBookings.length} new
-              </motion.span>
-            )}
-          </div>
-          <div className="space-y-3">
-            <AnimatePresence>
-              {pendingBookings.length === 0 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-10"
-                >
-                  <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-50 flex items-center justify-center">
-                    <CheckCircle2 className="w-6 h-6 text-gray-300" />
-                  </div>
-                  <p className="text-sm text-[var(--hana-muted)]">All caught up!</p>
-                  <p className="text-xs text-[var(--hana-muted)] mt-0.5">No pending requests</p>
-                </motion.div>
-              )}
-              {pendingBookings.slice(0, 5).map((request) => (
-                <PendingRequestCard
-                  key={request.id}
-                  request={request}
-                  onAccept={() => accept.mutate(request.id)}
-                  onReject={() => reject.mutate({ id: request.id, reason: 'Not available' })}
-                  acceptPending={accept.isPending}
-                  rejectPending={reject.isPending}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-        </motion.section>
-
-        {/* Upcoming Bookings */}
-        <motion.section
-          className="lg:col-span-3 rounded-2xl border p-5 bg-white/90 backdrop-blur-sm"
-          style={{ borderColor: 'var(--hana-subtle)' }}
-          initial="hidden" animate="visible" variants={fadeUp} custom={4}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-[var(--hana-charcoal)] flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-pink-500" />
-              Upcoming Bookings
-            </h2>
-            <Link href="/companion/bookings" className="text-xs font-medium flex items-center gap-0.5 text-[var(--hana-blush-dark)] hover:underline">
-              View all <ChevronRight size={12} />
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {confirmedBookings.length === 0 && (
-              <div className="text-center py-10">
-                <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-50 flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-gray-300" />
-                </div>
-                <p className="text-sm text-[var(--hana-muted)]">No upcoming bookings</p>
-              </div>
-            )}
-            {confirmedBookings.slice(0, 5).map((booking, i) => (
-              <motion.div
-                key={booking.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }}
-                whileHover={{ scale: 1.01, x: 4, borderColor: 'rgba(16, 185, 129, 0.3)' }}
-                className="flex items-center gap-3 p-4 rounded-xl border transition-all cursor-default"
-                style={{ borderColor: 'var(--hana-subtle)' }}
-              >
-                <div className="w-1.5 self-stretch rounded-full shrink-0 bg-gradient-to-b from-emerald-400 to-emerald-300" />
-                <motion.div
-                  whileHover={{ scale: 1.1 }}
-                  className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center text-sm font-bold text-pink-600 shrink-0"
-                >
-                  {booking.client?.name?.[0] || '?'}
-                </motion.div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold truncate text-[var(--hana-charcoal)]">{booking.client?.name || 'Unknown'}</p>
-                    <span className="text-xs font-bold text-emerald-600 px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded-full shrink-0">Confirmed</span>
-                  </div>
-                  <p className="text-xs text-[var(--hana-muted)] mt-0.5">{booking.activityType}</p>
-                  <div className="flex items-center gap-3 mt-1.5">
-                    <span className="text-xs flex items-center gap-1 text-[var(--hana-ash)]">
-                      <Calendar size={11} /> {new Date(booking.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                    </span>
-                    <span className="text-xs flex items-center gap-1 text-[var(--hana-ash)]">
-                      <Clock size={11} /> {booking.startTime} - {booking.endTime}
-                    </span>
-                    <span className="text-xs font-bold text-[var(--hana-charcoal)] ml-auto">
-                      ₹{booking.totalAmount?.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  {!booking.codeVerified && (
-                    <VerifyMeetingCard bookingId={booking.id} codeVerified={booking.codeVerified} />
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.section>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-start">
+        <RequestQueue requests={pendingBookings} accept={accept} reject={reject} />
+        <UpcomingSchedule bookings={confirmedBookings} />
       </div>
 
-      {/* Extension Analytics */}
-      {extensionStats && extensionStats.totalExtensions > 0 && (
-        <motion.section
-          className="rounded-2xl border bg-white p-6"
-          style={{ borderColor: 'var(--hana-subtle)' }}
-          initial="hidden" animate="visible" variants={fadeUp} custom={6}
-        >
-          <h2 className="text-base font-bold text-[var(--hana-charcoal)] flex items-center gap-2 mb-4">
-            <TrendingUp className="w-4 h-4 text-violet-500" />
-            Extension Analytics
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="bg-violet-50 rounded-xl p-4 border border-violet-100">
-              <p className="text-[11px] text-violet-600 uppercase tracking-wide font-medium">Total Extensions</p>
-              <p className="text-2xl font-bold text-violet-700 mt-1">{extensionStats.completedExtensions}</p>
-            </div>
-            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
-              <p className="text-[11px] text-emerald-600 uppercase tracking-wide font-medium">Extension Revenue</p>
-              <p className="text-2xl font-bold text-emerald-700 mt-1">₹{extensionStats.extensionRevenue.toLocaleString('en-IN')}</p>
-            </div>
-            <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-              <p className="text-[11px] text-blue-600 uppercase tracking-wide font-medium">Avg Duration</p>
-              <p className="text-2xl font-bold text-blue-700 mt-1">{extensionStats.averageExtensionMinutes}m</p>
-            </div>
-            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
-              <p className="text-[11px] text-amber-600 uppercase tracking-wide font-medium">Acceptance Rate</p>
-              <p className="text-2xl font-bold text-amber-700 mt-1">{extensionStats.extensionAcceptanceRate}%</p>
-            </div>
-            <div className="bg-pink-50 rounded-xl p-4 border border-pink-100">
-              <p className="text-[11px] text-pink-600 uppercase tracking-wide font-medium">Most Popular</p>
-              <p className="text-2xl font-bold text-pink-700 mt-1">
-                {extensionStats.mostPopularDuration
-                  ? extensionStats.mostPopularDuration >= 60
-                    ? `${extensionStats.mostPopularDuration / 60}h`
-                    : `${extensionStats.mostPopularDuration}m`
-                  : '—'}
-              </p>
-            </div>
-          </div>
-        </motion.section>
-      )}
+      <PerformancePanel stats={stats} extensionStats={extensionQuery.data} />
     </div>
   )
 }

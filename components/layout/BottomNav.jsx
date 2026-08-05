@@ -37,50 +37,31 @@ export default function BottomNav() {
     : [...NAV_ITEMS.filter(item => !item.auth), { href: '/login', icon: LogIn, label: 'Sign In' }]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="bg-white/95 backdrop-blur-lg border-t border-pink-100/50 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-        <div className="flex items-center justify-around h-[72px] max-w-md mx-auto px-2 pt-2 pb-3">
-          {visibleItems.map(item => {
-            const isActive = pathname === item.href || (item.href === '/discover' && pathname.startsWith('/companion'))
-            const Icon = item.icon
-            const showBadge = item.href === '/messages' && unreadCount > 0
-            return (
-              <Link key={item.href} href={item.href} className="flex-1 flex justify-center">
-                <motion.div
-                  className="relative flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl"
-                  whileTap={{ scale: 0.88 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="bottom-nav-pill"
-                      className="absolute inset-0 bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl shadow-lg shadow-pink-500/20"
-                      transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-                    />
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden" aria-label="Primary navigation">
+      <div className="pointer-events-auto mx-auto flex h-[68px] max-w-md items-center rounded-[22px] border border-white/70 bg-white/92 p-1.5 shadow-[0_20px_55px_-22px_rgba(96,31,58,0.38)] backdrop-blur-xl">
+        {visibleItems.map(item => {
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`) || (item.href === '/discover' && pathname.startsWith('/companion'))
+          const Icon = item.icon
+          const showBadge = item.href === '/messages' && unreadCount > 0
+          return (
+            <Link key={item.href} href={item.href} aria-current={isActive ? 'page' : undefined} className="flex min-h-12 flex-1 items-center justify-center rounded-[17px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--hana-blush-dark)]">
+              <motion.span whileTap={{ scale: 0.92 }} className={`relative flex min-h-12 w-full flex-col items-center justify-center gap-1 rounded-[17px] ${isActive ? 'text-white' : 'text-[var(--hana-muted)]'}`}>
+                {isActive && (
+                  <motion.span layoutId="bottom-nav-pill" className="absolute inset-0 rounded-[17px] bg-hana-gradient shadow-[0_10px_24px_-12px_rgba(233,30,99,0.75)]" transition={{ type: 'spring', stiffness: 420, damping: 30 }} />
+                )}
+                <span className="relative z-10">
+                  <Icon className="size-5" strokeWidth={isActive ? 2.35 : 1.8} aria-hidden="true" />
+                  {showBadge && (
+                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -right-2.5 -top-2 flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-[18px] text-white ring-2 ring-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </motion.span>
                   )}
-                  <div className="relative">
-                    <Icon
-                      className={`w-[22px] h-[22px] relative z-10 transition-colors duration-300 ${isActive ? 'text-white' : 'text-gray-400'}`}
-                      strokeWidth={isActive ? 2.5 : 1.8}
-                    />
-                    {showBadge && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full z-20 shadow-sm border-2 border-white"
-                      >
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </motion.span>
-                    )}
-                  </div>
-                  <span className={`text-[10px] font-medium tracking-wide relative z-10 transition-colors duration-300 ${isActive ? 'text-white font-semibold' : 'text-gray-400'}`}>
-                    {item.label}
-                  </span>
-                </motion.div>
-              </Link>
-            )
-          })}
-        </div>
+                </span>
+                <span className="relative z-10 text-[9px] font-semibold tracking-[-0.01em]">{item.label}</span>
+              </motion.span>
+            </Link>
+          )
+        })}
       </div>
     </nav>
   )

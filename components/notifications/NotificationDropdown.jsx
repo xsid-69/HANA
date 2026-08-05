@@ -92,12 +92,14 @@ export default function NotificationDropdown() {
   return (
     <div className="relative" ref={ref}>
       <motion.button
+        type="button"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setOpen(!open)}
-        className="relative w-10 h-10 rounded-xl flex items-center justify-center border bg-white hover:bg-gray-50 transition-colors"
+        className="relative h-11 w-11 rounded-xl flex items-center justify-center border bg-white hover:bg-gray-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--hana-blush-dark)]"
         style={{ borderColor: 'var(--hana-subtle)' }}
         aria-label="Notifications"
+        aria-expanded={open}
       >
         <Bell size={18} className="text-[var(--hana-ash)]" />
         {unreadCount > 0 && (
@@ -118,7 +120,7 @@ export default function NotificationDropdown() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.96 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 top-12 w-[360px] max-h-[480px] rounded-2xl border bg-white shadow-xl overflow-hidden z-50"
+            className="fixed left-4 right-4 top-[4.25rem] max-h-[min(480px,calc(100vh-6rem))] rounded-2xl border bg-white shadow-xl overflow-hidden z-50 md:absolute md:left-auto md:right-0 md:top-12 md:w-[360px]"
             style={{ borderColor: 'var(--hana-subtle)' }}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--hana-subtle)' }}>
@@ -133,7 +135,7 @@ export default function NotificationDropdown() {
               )}
             </div>
 
-            <div className="overflow-y-auto max-h-[420px] divide-y" style={{ divideColor: 'var(--hana-subtle)' }}>
+            <div data-lenis-prevent-wheel className="overflow-y-auto max-h-[420px] divide-y" style={{ divideColor: 'var(--hana-subtle)' }}>
               {notifications.length === 0 ? (
                 <div className="py-12 text-center">
                   <Bell className="w-8 h-8 mx-auto mb-2 text-gray-200" />

@@ -233,6 +233,9 @@ export async function toggleSaveCompanion(companionId) {
   if (existing) {
     await db.delete(savedCompanions)
       .where(eq(savedCompanions.id, existing.id))
+    import('@/app/actions/recommendations')
+      .then(({ logUserEvent }) => logUserEvent(userId, input, 'profile_dismissed'))
+      .catch(console.error)
     return { saved: false }
   }
 
@@ -240,5 +243,8 @@ export async function toggleSaveCompanion(companionId) {
     userId,
     companionId: input,
   })
+  import('@/app/actions/recommendations')
+    .then(({ logUserEvent }) => logUserEvent(userId, input, 'companion_saved'))
+    .catch(console.error)
   return { saved: true }
 }

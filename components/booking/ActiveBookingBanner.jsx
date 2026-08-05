@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Clock, Timer, AlertTriangle, Sparkles } from 'lucide-react'
@@ -12,89 +12,7 @@ import ExtensionPromptSheet from './ExtensionPromptSheet'
 import ExtensionPaymentSheet from './ExtensionPaymentSheet'
 import Link from 'next/link'
 import { getImageUrl } from '@/lib/image-url'
-
-// TESTING: 24x speed — 2 hours completes in 5 real minutes. Remove for production.
-const TIME_ACCELERATION = 24
-
-function parseTimeStr(timeStr) {
-  if (!timeStr) return { hours: 0, minutes: 0 }
-  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i)
-  if (!match) return { hours: 0, minutes: 0 }
-  let hours = parseInt(match[1], 10)
-  const minutes = parseInt(match[2], 10)
-  const period = match[3]
-  if (period) {
-    if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12
-    if (period.toUpperCase() === 'AM' && hours === 12) hours = 0
-  }
-  return { hours, minutes }
-}
-
-function CountdownTimer({ bookingDate, endTimeStr, startTime, durationHours, onComplete }) {
-  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0, progress: 0 })
-  const completedRef = useRef(false)
-
-  useEffect(() => {
-    let endMs
-    if (endTimeStr && bookingDate) {
-      const { hours: eh, minutes: em } = parseTimeStr(endTimeStr)
-      const end = new Date(bookingDate)
-      end.setHours(eh, em, 0, 0)
-      endMs = end.getTime()
-    } else {
-      const totalMs = durationHours * 60 * 60 * 1000
-      endMs = new Date(startTime).getTime() + totalMs
-    }
-
-    const startMs = new Date(startTime).getTime()
-    const totalMs = endMs - startMs
-
-    function update() {
-      const realElapsed = Date.now() - startMs
-      const virtualElapsed = realElapsed * TIME_ACCELERATION
-      const remaining = Math.max(0, totalMs - virtualElapsed)
-      const progress = Math.min(100, (virtualElapsed / totalMs) * 100)
-
-      const hours = Math.floor(remaining / (1000 * 60 * 60))
-      const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
-      const seconds = Math.floor((remaining % (1000 * 60)) / 1000)
-
-      setTimeLeft({ hours, minutes, seconds, progress })
-
-      // Session time is up — auto-complete once.
-      if (remaining <= 0 && !completedRef.current) {
-        completedRef.current = true
-        onComplete?.()
-      }
-    }
-
-    update()
-    const interval = setInterval(update, 1000)
-    return () => clearInterval(interval)
-  }, [bookingDate, endTimeStr, startTime, durationHours, onComplete])
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-1 font-mono text-lg font-bold text-white">
-        <span className="bg-white/20 backdrop-blur-sm rounded-lg px-2 py-1">{String(timeLeft.hours).padStart(2, '0')}</span>
-        <span className="text-white/60 animate-pulse">:</span>
-        <span className="bg-white/20 backdrop-blur-sm rounded-lg px-2 py-1">{String(timeLeft.minutes).padStart(2, '0')}</span>
-        <span className="text-white/60 animate-pulse">:</span>
-        <span className="bg-white/20 backdrop-blur-sm rounded-lg px-2 py-1">{String(timeLeft.seconds).padStart(2, '0')}</span>
-      </div>
-      <div className="hidden sm:block flex-1 max-w-32">
-        <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full bg-white/80 rounded-full"
-            style={{ width: `${timeLeft.progress}%` }}
-            transition={{ duration: 1 }}
-          />
-        </div>
-        <p className="text-[10px] text-white/60 mt-0.5 text-center">{timeLeft.progress.toFixed(0)}% elapsed</p>
-      </div>
-    </div>
-  )
-}
+import SyncedSessionTimer from './SyncedSessionTimer'
 
 function PaymentCountdown({ expiresAt }) {
   const [timeLeft, setTimeLeft] = useState('')
@@ -181,18 +99,20 @@ export default function ActiveBookingBanner() {
   }, [queryClient]))
 
   useEffect(() => {
-    if (shouldShowPrompt && activeBooking && !showExtensionPayment) {
-      setShowExtensionPrompt(true)
-    }
+    if (!shouldShowPrompt || !activeBooking || showExtensionPayment) return undefined
+    const timeoutId = setTimeout(() => setShowExtensionPrompt(true), 0)
+    return () => clearTimeout(timeoutId)
   }, [shouldShowPrompt, activeBooking, showExtensionPayment])
 
   // When the companion approves, open the payment sheet (polling-driven).
   useEffect(() => {
-    if (polledExtension?.status === 'APPROVED') {
+    if (polledExtension?.status !== 'APPROVED') return undefined
+    const timeoutId = setTimeout(() => {
       setPendingExt(polledExtension)
       setShowExtensionPayment(true)
       setShowExtensionPrompt(false)
-    }
+    }, 0)
+    return () => clearTimeout(timeoutId)
   }, [polledExtension])
 
   useBookingRealtime(activeBooking?.id, useCallback(() => {
@@ -252,13 +172,7 @@ export default function ActiveBookingBanner() {
                 </div>
               </div>
 
-              <CountdownTimer
-                bookingDate={activeBooking.date}
-                endTimeStr={activeBooking.endTime}
-                startTime={activeBooking.verifiedAt || activeBooking.updatedAt}
-                durationHours={activeBooking.durationHours}
-                onComplete={handleAutoComplete}
-              />
+              <SyncedSessionTimer booking={activeBooking} onComplete={handleAutoComplete} />
             </div>
 
             <div className="relative flex items-center gap-4 mt-3 pt-3 border-t border-white/10">

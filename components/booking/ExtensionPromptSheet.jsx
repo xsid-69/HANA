@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, Sparkles, IndianRupee, X, Loader2 } from 'lucide-react'
+import { Clock, Sparkles, X, Loader2 } from 'lucide-react'
 import { requestExtension } from '@/app/actions/extensions'
+import { formatINR } from '@/lib/format-currency'
 
 export default function ExtensionPromptSheet({ booking, options, onClose, onRequested }) {
   const [loading, setLoading] = useState(false)
@@ -66,12 +67,12 @@ export default function ExtensionPromptSheet({ booking, options, onClose, onRequ
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={{ top: 0, bottom: 0.4 }}
           onDragEnd={(e, info) => { if (info.offset.y > 120) onClose() }}
-          className="w-full sm:max-w-md bg-white rounded-t-3xl px-6 pt-7 pb-9 relative overflow-hidden shadow-2xl"
+          className="w-full sm:max-w-md bg-[var(--hana-warm-white)] rounded-t-3xl px-6 pt-7 pb-9 relative overflow-hidden shadow-2xl"
           onClick={e => e.stopPropagation()}
         >
           {/* Drag handle */}
-          <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-neutral-300" />
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-amber-50 pointer-events-none" />
+          <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-[var(--hana-subtle)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(145deg,var(--hana-ivory),white_55%,#fff5f8)] pointer-events-none" />
 
           <div className="relative">
             <button
@@ -85,7 +86,7 @@ export default function ExtensionPromptSheet({ booking, options, onClose, onRequ
               <motion.div
                 animate={{ rotate: [0, 5, -5, 0] }}
                 transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-amber-500 mb-3"
+                className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-hana-gradient mb-3 shadow-lg shadow-pink-200"
               >
                 <Sparkles className="w-7 h-7 text-white" />
               </motion.div>
@@ -103,13 +104,13 @@ export default function ExtensionPromptSheet({ booking, options, onClose, onRequ
                   onClick={() => handleRequest(opt)}
                   className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
                     selected === opt.minutes
-                      ? 'border-violet-500 bg-violet-50'
-                      : 'border-neutral-200 bg-white hover:border-violet-300 hover:bg-violet-50/50'
+                      ? 'border-[var(--hana-blush-dark)] bg-[var(--hana-ivory)]'
+                      : 'border-[var(--hana-subtle)] bg-white hover:border-[var(--hana-pink-light)] hover:bg-[var(--hana-ivory)]/60'
                   } disabled:opacity-60`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-100 to-amber-100 flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-violet-600" />
+                    <div className="w-10 h-10 rounded-xl bg-[var(--hana-ivory)] flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-[var(--hana-blush-dark)]" />
                     </div>
                     <div className="text-left">
                       <span className="font-semibold text-neutral-900">{opt.label}</span>
@@ -122,10 +123,7 @@ export default function ExtensionPromptSheet({ booking, options, onClose, onRequ
                     {selected === opt.minutes && loading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <>
-                        <IndianRupee className="w-3.5 h-3.5" />
-                        <span>{opt.amount.toLocaleString('en-IN')}</span>
-                      </>
+                      <span>{formatINR(opt.amount)}</span>
                     )}
                   </div>
                 </motion.button>

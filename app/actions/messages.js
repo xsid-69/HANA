@@ -229,6 +229,21 @@ export async function sendMessage(input) {
     })
   }
 
+  const [interaction] = await db.select({
+    clientId: bookings.clientId,
+    companionId: bookings.companionId,
+  })
+    .from(conversations)
+    .innerJoin(bookings, eq(conversations.bookingId, bookings.id))
+    .where(eq(conversations.id, data.conversationId))
+    .limit(1)
+
+  if (interaction?.clientId === userId) {
+    import('@/app/actions/recommendations')
+      .then(({ logUserEvent }) => logUserEvent(userId, interaction.companionId, 'message_sent'))
+      .catch(console.error)
+  }
+
   return { ...message, sender }
 }
 

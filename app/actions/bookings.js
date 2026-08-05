@@ -8,6 +8,7 @@ import { verifyToken } from '@/lib/jwt'
 import { cookies } from 'next/headers'
 import { randomInt } from 'crypto'
 import { z } from 'zod'
+import { getSessionClock, getSessionEndsAt } from '@/lib/session-timing'
 
 // ── Booking time limits ──────────────────────────────────────────────
 // How long a companion has to accept/reject a client's request before it
@@ -148,6 +149,10 @@ export async function createBooking(input) {
     body: `You have a new booking request for ${data.activityType}. Respond before it expires.`,
     data: { bookingId: booking.id, requestExpiresAt: requestExpiresAt.toISOString() },
   })
+
+  import('@/app/actions/recommendations')
+    .then(({ logUserEvent }) => logUserEvent(userId, data.companionId, 'booking_completed'))
+    .catch(console.error)
 
   return booking
 }
@@ -553,6 +558,10 @@ export async function userCancelBooking(bookingId, reason) {
     data: { bookingId: booking.id },
   })
 
+  import('@/app/actions/recommendations')
+    .then(({ logUserEvent }) => logUserEvent(userId, booking.companionId, 'booking_cancelled'))
+    .catch(console.error)
+
   return updated
 }
 
@@ -575,6 +584,11 @@ export async function completeBooking(bookingId) {
   if (companion?.userId !== userId) throw new Error('Forbidden')
   if (booking.status !== 'IN_PROGRESS') throw new Error('Booking must be in progress to complete')
   if (!booking.codeVerified) throw new Error('Meeting must be verified before completing')
+
+  const sessionEndsAt = getSessionEndsAt(booking)
+  if (!sessionEndsAt || Date.now() < sessionEndsAt.getTime()) {
+    throw new Error('The session is still active')
+  }
 
   const [updated] = await db.update(bookings)
     .set({ status: 'COMPLETED', updatedAt: new Date() })
@@ -625,6 +639,11 @@ export async function autoCompleteBooking(bookingId) {
   if (!booking) throw new Error('Booking not found')
   if (booking.status === 'COMPLETED') return booking
   if (booking.status !== 'IN_PROGRESS') throw new Error('Booking is not in progress')
+
+  const sessionEndsAt = getSessionEndsAt(booking)
+  if (!sessionEndsAt || Date.now() < sessionEndsAt.getTime()) {
+    throw new Error('The session is still active')
+  }
 
   const [companion] = await db.select({ userId: companions.userId, id: companions.id })
     .from(companions)
@@ -714,6 +733,7 @@ export async function getMyBookings(input) {
 
     return {
       ...booking,
+      ...getSessionClock(booking),
       companion: companion ? { ...companion, user: companionUser } : null,
     }
   }))
@@ -757,7 +777,7 @@ export async function getCompanionBookings(input) {
       .where(eq(users.id, booking.clientId))
       .limit(1)
 
-    return { ...booking, client }
+    return { ...booking, ...getSessionClock(booking), client }
   }))
 
   return results
@@ -766,8 +786,6 @@ export async function getCompanionBookings(input) {
 // Get companion dashboard stats
 export async function getCompanionDashboardStats() {
   const userId = await getUser()
-
-  // Opportunistically expire any stale requests/payments before reading.
   await expireStaleBookings()
 
   const [companion] = await db.select()
@@ -777,33 +795,92 @@ export async function getCompanionDashboardStats() {
 
   if (!companion) throw new Error('Not a companion')
 
-  const [pendingCount] = await db.select({ count: count() })
-    .from(bookings)
-    .where(and(eq(bookings.companionId, companion.id), eq(bookings.status, 'PENDING_ACCEPTANCE')))
+  const now = new Date()
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+  const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
+  const weekStart = new Date(now)
+  weekStart.setUTCHours(0, 0, 0, 0)
+  weekStart.setUTCDate(weekStart.getUTCDate() - 6)
+  const dayKey = sql`to_char(${bookings.date}, 'YYYY-MM-DD')`
 
-  const [confirmedCount] = await db.select({ count: count() })
-    .from(bookings)
-    .where(and(eq(bookings.companionId, companion.id), inArray(bookings.status, ['CONFIRMED', 'IN_PROGRESS'])))
+  const [statusRows, monthEarningsRows, weeklyRows, activityRows] = await Promise.all([
+    db.select({ status: bookings.status, count: count() })
+      .from(bookings)
+      .where(eq(bookings.companionId, companion.id))
+      .groupBy(bookings.status),
+    db.select({ total: sql`COALESCE(SUM(${bookings.totalAmount}), 0)` })
+      .from(bookings)
+      .where(and(
+        eq(bookings.companionId, companion.id),
+        eq(bookings.status, 'COMPLETED'),
+        gte(bookings.date, monthStart),
+        lt(bookings.date, nextMonth),
+      )),
+    db.select({
+      day: dayKey,
+      bookings: sql`COALESCE(SUM(CASE WHEN ${bookings.status} IN ('COMPLETED', 'CONFIRMED', 'IN_PROGRESS') THEN 1 WHEN ${bookings.status} IN ('CANCELLED', 'REJECTED', 'EXPIRED') THEN -1 ELSE 0 END), 0)`,
+      earnings: sql`COALESCE(SUM(CASE WHEN ${bookings.status} = 'COMPLETED' THEN ${bookings.totalAmount} WHEN ${bookings.status} IN ('CANCELLED', 'REJECTED', 'EXPIRED') THEN -${bookings.totalAmount} ELSE 0 END), 0)`,
+    })
+      .from(bookings)
+      .where(and(eq(bookings.companionId, companion.id), gte(bookings.date, weekStart)))
+      .groupBy(dayKey),
+    db.select({
+      activity: bookings.activityType,
+      count: count(),
+      hours: sql`COALESCE(SUM(${bookings.durationHours}), 0)`,
+    })
+      .from(bookings)
+      .where(eq(bookings.companionId, companion.id))
+      .groupBy(bookings.activityType)
+      .orderBy(desc(count()))
+      .limit(5),
+  ])
 
-  const [monthEarnings] = await db.select({ total: sql`COALESCE(SUM("totalAmount"), 0)` })
-    .from(bookings)
-    .where(and(
-      eq(bookings.companionId, companion.id),
-      eq(bookings.status, 'COMPLETED'),
-      gte(bookings.createdAt, new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
-    ))
+  const statusBreakdown = statusRows.map((row) => ({
+    status: row.status,
+    count: Number(row.count),
+  }))
+  const statusCount = (status) => statusBreakdown.find((item) => item.status === status)?.count ?? 0
+  const weeklyMap = new Map(weeklyRows.map((row) => [row.day, row]))
+  const weeklyTrend = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart)
+    date.setUTCDate(weekStart.getUTCDate() + index)
+    const key = date.toISOString().slice(0, 10)
+    const row = weeklyMap.get(key)
+    return {
+      date: key,
+      label: date.toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'UTC' }),
+      bookings: Number(row?.bookings ?? 0),
+      earnings: Number(row?.earnings ?? 0),
+    }
+  })
+
+  const totalRequests = statusBreakdown.reduce((sum, item) => sum + item.count, 0)
+  const completed = statusCount('COMPLETED')
+  const terminal = completed + statusCount('CANCELLED') + statusCount('REJECTED') + statusCount('EXPIRED')
 
   return {
     companion,
-    pendingRequests: pendingCount?.count ?? 0,
-    upcomingBookings: confirmedCount?.count ?? 0,
-    monthlyEarnings: Number(monthEarnings?.total ?? 0),
+    pendingRequests: statusCount('PENDING_ACCEPTANCE'),
+    upcomingBookings: statusCount('CONFIRMED'),
+    activeBookings: statusCount('IN_PROGRESS'),
+    monthlyEarnings: Number(monthEarningsRows[0]?.total ?? 0),
     trustScore: companion.trustScore,
     acceptanceRate: companion.acceptanceRate,
     cancellationRate: companion.cancellationRate,
     averageRating: companion.averageRating,
     totalReviews: companion.totalReviews,
     completedBookings: companion.completedBookings,
+    responseTimeAvg: companion.responseTimeAvg,
+    totalRequests,
+    completionRate: terminal > 0 ? Math.round((completed / terminal) * 100) : 0,
+    statusBreakdown,
+    weeklyTrend,
+    activityBreakdown: activityRows.map((row) => ({
+      activity: row.activity,
+      count: Number(row.count),
+      hours: Number(row.hours),
+    })),
   }
 }
 

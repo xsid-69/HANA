@@ -197,7 +197,7 @@ function ConversationList({ conversations, activeChat, setActiveChat, currentUse
         </div>
         <p className="text-xs text-[var(--hana-muted)]">{conversations.length} conversation{conversations.length !== 1 ? 's' : ''}</p>
       </div>
-      <div className="flex-1 overflow-y-auto py-2">
+      <div data-lenis-prevent-wheel className="flex-1 overflow-y-auto py-2">
         {conversations.map((conv, i) => (
           <ConversationItem
             key={conv.id}
@@ -359,7 +359,7 @@ function ChatArea({ conversation, currentUserId, onBack, showBackButton }) {
       </motion.div>
 
       {/* Messages */}
-      <div ref={chatContainerRef} className="flex-1 px-4 md:px-6 py-4 overflow-y-auto min-h-0">
+      <div ref={chatContainerRef} data-lenis-prevent-wheel className="flex-1 px-4 md:px-6 py-4 overflow-y-auto min-h-0">
         {loadingMessages && (
           <div className="flex justify-center py-12">
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>

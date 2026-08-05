@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider } from 'next-auth/react'
 import { useState } from 'react'
 import ToastContainer from '@/components/ui/ToastContainer'
+import SmoothScrollProvider from '@/components/providers/SmoothScrollProvider'
 
 export function Providers({ children }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -32,8 +33,10 @@ export function Providers({ children }) {
   return (
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
-        {children}
-        <ToastContainer />
+        <SmoothScrollProvider>
+          {children}
+          <ToastContainer />
+        </SmoothScrollProvider>
       </QueryClientProvider>
     </SessionProvider>
   )

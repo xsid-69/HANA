@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { IndianRupee, Clock, CheckCircle2, Loader2, X } from 'lucide-react'
+import { Clock, CheckCircle2, Loader2, X } from 'lucide-react'
 import { payExtension } from '@/app/actions/extensions'
+import { formatINR } from '@/lib/format-currency'
 
 export default function ExtensionPaymentSheet({ extension, booking, onClose, onPaid }) {
   const [loading, setLoading] = useState(false)
@@ -102,14 +103,14 @@ export default function ExtensionPaymentSheet({ extension, booking, onClose, onP
               </button>
 
               <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 mb-3">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-hana-gradient mb-3 shadow-lg shadow-pink-200">
                   <CheckCircle2 className="w-7 h-7 text-white" />
                 </div>
                 <h2 className="text-xl font-bold text-neutral-900">Extension Approved</h2>
                 <p className="text-neutral-500 text-sm mt-1">Complete payment to continue your booking</p>
               </div>
 
-              <div className="bg-neutral-50 rounded-2xl p-4 mb-5 space-y-3">
+                <div className="bg-[var(--hana-ivory)] rounded-2xl p-4 mb-5 space-y-3 border border-[var(--hana-subtle)]">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-neutral-600">Extension Duration</span>
                   <span className="text-sm font-semibold text-neutral-900">{durationLabel}</span>
@@ -120,13 +121,12 @@ export default function ExtensionPaymentSheet({ extension, booking, onClose, onP
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-neutral-600">New End Time</span>
-                  <span className="text-sm font-semibold text-emerald-600">{newEndTime}</span>
+                  <span className="text-sm font-semibold text-[var(--hana-blush-dark)]">{newEndTime}</span>
                 </div>
                 <div className="border-t border-neutral-200 pt-3 flex items-center justify-between">
                   <span className="text-sm font-semibold text-neutral-900">Additional Cost</span>
-                  <span className="flex items-center gap-1 text-lg font-bold text-neutral-900">
-                    <IndianRupee className="w-4 h-4" />
-                    {extension.additionalAmount.toLocaleString('en-IN')}
+                  <span className="text-lg font-bold text-neutral-900">
+                    {formatINR(extension.additionalAmount)}
                   </span>
                 </div>
               </div>
@@ -136,15 +136,12 @@ export default function ExtensionPaymentSheet({ extension, booking, onClose, onP
                 whileTap={{ scale: 0.97 }}
                 disabled={loading}
                 onClick={handlePay}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-base shadow-lg shadow-violet-200 flex items-center justify-center gap-2 disabled:opacity-60"
+                className="w-full py-4 rounded-2xl bg-hana-gradient text-white font-bold text-base shadow-lg shadow-pink-200 flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <>
-                    <IndianRupee className="w-4 h-4" />
-                    Pay ₹{extension.additionalAmount.toLocaleString('en-IN')}
-                  </>
+                  <>Pay {formatINR(extension.additionalAmount)}</>
                 )}
               </motion.button>
             </div>
