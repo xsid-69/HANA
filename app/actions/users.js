@@ -5,6 +5,7 @@ import { users, companions, savedCompanions, bookings, reviews, experiences } fr
 import { eq, and, count } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { verifyToken } from '@/lib/jwt'
+import { isCompanionAge } from '@/lib/age-policy'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
 
@@ -70,143 +71,170 @@ export async function getProfile() {
 
 export async function updateProfile(input) {
   const userId = await getUser()
-
   const schema = z.object({
     name: z.string().min(1).max(100).optional(),
+    age: z.coerce.number().int().min(18).max(100).optional(),
     bio: z.string().max(500).optional(),
     city: z.string().max(100).optional(),
     image: z.string().optional(),
     banner: z.string().optional(),
   })
-
   const data = schema.parse(input)
 
-  const [updated] = await db.update(users)
-    .set({ ...data, updatedAt: new Date() })
+  const [currentUser] = await db.select({ role: users.role })
+    .from(users)
     .where(eq(users.id, userId))
-    .returning()
+    .limit(1)
+  if (!currentUser) throw new Error('User not found')
+  if (data.age != null && currentUser.role === 'COMPANION' && !isCompanionAge(data.age)) {
+    throw new Error('Companions must be between 18 and 25 years old')
+  }
 
-  return updated
+  return db.transaction(async (tx) => {
+    const [updated] = await tx.update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning()
+
+    if (data.age != null && currentUser.role === 'COMPANION') {
+      await tx.update(companions)
+        .set({ age: data.age, updatedAt: new Date() })
+        .where(eq(companions.userId, userId))
+    }
+    return updated
+  })
 }
 
 export async function updateCompanionProfile(input) {
   const userId = await getUser()
-
   const schema = z.object({
     displayName: z.string().min(1).max(50).optional(),
+    age: z.coerce.number().int().min(18).max(25).optional(),
     bio: z.string().max(1000).optional(),
     city: z.string().max(100).optional(),
     languages: z.array(z.string()).optional(),
     hourlyRate: z.number().min(100).optional(),
     photos: z.array(z.string()).optional(),
   })
-
   const data = schema.parse(input)
 
   const [companion] = await db.select({ id: companions.id })
     .from(companions)
     .where(eq(companions.userId, userId))
     .limit(1)
-
   if (!companion) throw new Error('Not a companion')
 
-  const [updated] = await db.update(companions)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(companions.id, companion.id))
-    .returning()
+  return db.transaction(async (tx) => {
+    const [updated] = await tx.update(companions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(companions.id, companion.id))
+      .returning()
 
-  if (data.displayName || data.city) {
     const userUpdate = {}
     if (data.displayName) userUpdate.name = data.displayName
     if (data.city) userUpdate.city = data.city
-    await db.update(users)
-      .set({ ...userUpdate, updatedAt: new Date() })
-      .where(eq(users.id, userId))
-  }
-
-  return updated
+    if (data.age != null) userUpdate.age = data.age
+    if (Object.keys(userUpdate).length) {
+      await tx.update(users)
+        .set({ ...userUpdate, updatedAt: new Date() })
+        .where(eq(users.id, userId))
+    }
+    return updated
+  })
 }
 
 export async function completeOnboarding(input) {
   const userId = await getUser()
-
   const schema = z.object({
     role: z.enum(['CLIENT', 'COMPANION']),
     name: z.string().min(1).max(100),
+    age: z.number().int().min(18).max(100),
     city: z.string().min(1).max(100),
     image: z.string().optional(),
     tags: z.array(z.string()).optional(),
-    // Companion-specific fields
-    age: z.number().min(18).max(99).optional(),
     bio: z.string().min(10).max(1000).optional(),
     hourlyRate: z.number().min(100).optional(),
     languages: z.array(z.string()).optional(),
     displayName: z.string().min(1).max(50).optional(),
+  }).superRefine((data, ctx) => {
+    if (data.role === 'COMPANION' && !isCompanionAge(data.age)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['age'],
+        message: 'Companions must be between 18 and 25 years old',
+      })
+    }
   })
-
   const data = schema.parse(input)
 
-  const [user] = await db.update(users)
-    .set({
-      role: data.role,
-      name: data.name,
-      city: data.city,
-      image: data.image,
-      onboarded: true,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, userId))
-    .returning()
+  return db.transaction(async (tx) => {
+    const [user] = await tx.update(users)
+      .set({
+        role: data.role,
+        name: data.name,
+        age: data.age,
+        city: data.city,
+        image: data.image,
+        onboarded: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning()
 
-  // If companion, create companion profile
-  if (data.role === 'COMPANION') {
-    const [existing] = await db.select({ id: companions.id })
-      .from(companions)
-      .where(eq(companions.userId, userId))
-      .limit(1)
-
-    if (!existing) {
-      await db.insert(companions).values({
-        userId,
+    if (data.role === 'COMPANION') {
+      const profileData = {
         displayName: data.displayName || data.name,
-        age: data.age || 25,
+        age: data.age,
         city: data.city,
         bio: data.bio || `Hi, I'm ${data.name}. Let's explore ${data.city} together!`,
-        languages: data.languages || ['English', 'Hindi'],
+        languages: data.languages?.length ? data.languages : ['English', 'Hindi'],
         photos: data.image ? [data.image] : [],
         tags: data.tags || [],
         hourlyRate: data.hourlyRate || 1000,
         isActive: true,
-        createdAt: new Date(),
         updatedAt: new Date(),
-      })
-    }
-  }
+      }
+      const [existing] = await tx.select({ id: companions.id })
+        .from(companions)
+        .where(eq(companions.userId, userId))
+        .limit(1)
 
-  return user
+      if (existing) {
+        await tx.update(companions).set(profileData).where(eq(companions.id, existing.id))
+      } else {
+        await tx.insert(companions).values({
+          userId,
+          ...profileData,
+          createdAt: new Date(),
+        })
+      }
+    }
+
+    return user
+  })
 }
 
 export async function getSavedCompanions() {
   const userId = await getUser()
-
   const saved = await db.select()
     .from(savedCompanions)
     .where(eq(savedCompanions.userId, userId))
     .orderBy(savedCompanions.savedAt)
 
-  const results = await Promise.all(saved.map(async (s) => {
+  const results = await Promise.all(saved.map(async (savedItem) => {
     const [companion] = await db.select()
       .from(companions)
-      .where(eq(companions.id, s.companionId))
+      .where(eq(companions.id, savedItem.companionId))
       .limit(1)
 
-    if (!companion) return null
+    if (!companion || !companion.isActive || companion.isSuspended) {
+      return null
+    }
 
     const [user] = await db.select({ name: users.name, image: users.image })
       .from(users)
       .where(eq(users.id, companion.userId))
       .limit(1)
-
     const exps = await db.select()
       .from(experiences)
       .where(eq(experiences.companionId, companion.id))
@@ -219,9 +247,7 @@ export async function getSavedCompanions() {
 
 export async function toggleSaveCompanion(companionId) {
   const userId = await getUser()
-
   const input = z.string().parse(companionId)
-
   const [existing] = await db.select()
     .from(savedCompanions)
     .where(and(
@@ -231,18 +257,26 @@ export async function toggleSaveCompanion(companionId) {
     .limit(1)
 
   if (existing) {
-    await db.delete(savedCompanions)
-      .where(eq(savedCompanions.id, existing.id))
+    await db.delete(savedCompanions).where(eq(savedCompanions.id, existing.id))
     import('@/app/actions/recommendations')
       .then(({ logUserEvent }) => logUserEvent(userId, input, 'profile_dismissed'))
       .catch(console.error)
     return { saved: false }
   }
 
-  await db.insert(savedCompanions).values({
-    userId,
-    companionId: input,
+  const [companion] = await db.select({
+    isActive: companions.isActive,
+    isSuspended: companions.isSuspended,
   })
+    .from(companions)
+    .where(eq(companions.id, input))
+    .limit(1)
+
+  if (!companion || !companion.isActive || companion.isSuspended) {
+    throw new Error('This companion is currently unavailable')
+  }
+
+  await db.insert(savedCompanions).values({ userId, companionId: input })
   import('@/app/actions/recommendations')
     .then(({ logUserEvent }) => logUserEvent(userId, input, 'companion_saved'))
     .catch(console.error)

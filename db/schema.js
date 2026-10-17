@@ -1,4 +1,6 @@
-import { pgTable, text, integer, boolean, timestamp, uniqueIndex, pgEnum, real, json } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, boolean, timestamp, uniqueIndex, pgEnum, real, json, check } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { randomUUID } from 'crypto'
 import { createId } from './utils.js'
 
 export const extensionStatusEnum = pgEnum('ExtensionStatus', ['PENDING', 'APPROVED', 'DECLINED', 'PAID', 'EXPIRED'])
@@ -28,6 +30,7 @@ export const users = pgTable('users', {
   banner: text('banner'),
   password: text('password'),
   role: roleEnum('role').default('CLIENT').notNull(),
+  age: integer('age'),
   city: text('city'),
   bio: text('bio'),
   onboarded: boolean('onboarded').default(false).notNull(),
@@ -37,6 +40,29 @@ export const users = pgTable('users', {
   completedBookings: integer('completedBookings').default(0).notNull(),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+}, (table) => [
+  check('users_age_adult_check', sql`${table.age} is null or (${table.age} >= 18 and ${table.age} <= 100)`),
+])
+
+export const codeWords = pgTable('code_words', {
+  id: text('id').primaryKey().$defaultFn(randomUUID),
+  companionId: text('companionId').notNull().unique().references(() => users.id),
+  wordHash: text('wordHash').notNull(),
+  wordFingerprint: text('wordFingerprint').notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  lastChangedAt: timestamp('lastChangedAt', { mode: 'date' }).defaultNow().notNull(),
+})
+
+export const evidenceLog = pgTable('evidence_log', {
+  id: text('id').primaryKey().$defaultFn(randomUUID),
+  bookingId: text('bookingId').notNull().references(() => bookings.id),
+  companionId: text('companionId').notNull().references(() => users.id),
+  clientId: text('clientId').notNull().references(() => users.id),
+  triggerType: text('triggerType').notNull(),
+  locationEncrypted: text('locationEncrypted'),
+  chatId: text('chatId').notNull().references(() => conversations.id),
+  timestamp: timestamp('timestamp', { mode: 'date' }).defaultNow().notNull(),
+  adminReviewed: boolean('adminReviewed').default(false).notNull(),
 })
 
 export const accounts = pgTable('accounts', {
@@ -102,7 +128,9 @@ export const companions = pgTable('companions', {
   responseTimeAvg: integer('responseTimeAvg').default(0).notNull(),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
-})
+}, (table) => [
+  check('companions_age_range_check', sql`${table.age} >= 18 and ${table.age} <= 25`),
+])
 
 export const experiences = pgTable('experiences', {
   id: text('id').primaryKey().$defaultFn(createId),

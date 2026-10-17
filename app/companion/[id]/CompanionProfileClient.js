@@ -14,6 +14,8 @@ import { logUserEvent } from '@/app/actions/recommendations'
 export default function CompanionProfileClient({ companion, isOwnProfile, viewerUserId }) {
   const router = useRouter()
   const [liked, setLiked] = useState(false)
+  const bookingEligibility = companion.bookingEligibility ?? { canBook: false, reason: 'Booking eligibility unavailable' }
+  const canBook = bookingEligibility.canBook
 
   useEffect(() => {
     if (!viewerUserId || isOwnProfile) return undefined
@@ -27,6 +29,7 @@ export default function CompanionProfileClient({ companion, isOwnProfile, viewer
   }, [companion.id, isOwnProfile, viewerUserId])
 
   const handleBook = () => {
+    if (!canBook) return
     saveLastCompanion(companion)
     router.push(`/bookings?companionId=${companion.id}`)
   }
@@ -304,18 +307,25 @@ export default function CompanionProfileClient({ companion, isOwnProfile, viewer
             </>
           ) : (
             <>
-              <div>
-                <p className="text-[10px] text-[var(--hana-muted)] uppercase tracking-wider font-medium">From</p>
-                <p className="text-xl font-bold text-[var(--hana-charcoal)]">
-                  {formatINR(companion.hourlyRate)}<span className="text-sm font-normal text-[var(--hana-muted)]">/hr</span>
+              <div className="min-w-0 pr-3">
+                <p className="text-[10px] text-[var(--hana-muted)] uppercase tracking-wider font-medium">
+                  {canBook ? 'From' : 'Booking unavailable'}
                 </p>
+                {canBook ? (
+                  <p className="text-xl font-bold text-[var(--hana-charcoal)]">
+                    {formatINR(companion.hourlyRate)}<span className="text-sm font-normal text-[var(--hana-muted)]">/hr</span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-[var(--hana-ash)] truncate">{bookingEligibility.reason}</p>
+                )}
               </div>
               <button
                 onClick={handleBook}
-                className="px-7 py-3.5 bg-hana-gradient text-white rounded-full text-sm font-bold shadow-lg shadow-pink-500/30 flex items-center gap-2 btn-ripple"
+                disabled={!canBook}
+                className="px-7 py-3.5 bg-hana-gradient text-white rounded-full text-sm font-bold shadow-lg shadow-pink-500/30 flex items-center gap-2 btn-ripple disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
               >
-                <Heart className="w-4 h-4 fill-white" />
-                Book a Moment
+                <Heart className={`w-4 h-4 ${canBook ? 'fill-white' : ''}`} />
+                {canBook ? 'Book a Moment' : 'Not eligible'}
               </button>
             </>
           )}
@@ -554,17 +564,24 @@ export default function CompanionProfileClient({ companion, isOwnProfile, viewer
               ) : (
                 <>
                   <div>
-                    <p className="text-xs text-[var(--hana-muted)] uppercase tracking-wider font-medium">From</p>
-                    <p className="text-2xl font-bold text-[var(--hana-charcoal)]">
-                      {formatINR(companion.hourlyRate)}<span className="text-base font-normal text-[var(--hana-muted)]">/hr</span>
+                    <p className="text-xs text-[var(--hana-muted)] uppercase tracking-wider font-medium">
+                      {canBook ? 'From' : 'Booking unavailable'}
                     </p>
+                    {canBook ? (
+                      <p className="text-2xl font-bold text-[var(--hana-charcoal)]">
+                        {formatINR(companion.hourlyRate)}<span className="text-base font-normal text-[var(--hana-muted)]">/hr</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-[var(--hana-ash)] mt-1">{bookingEligibility.reason}</p>
+                    )}
                   </div>
                   <button
                     onClick={handleBook}
-                    className="px-8 py-3.5 bg-hana-gradient text-white rounded-full text-sm font-bold shadow-lg shadow-pink-500/25 flex items-center gap-2 btn-ripple"
+                    disabled={!canBook}
+                    className="px-8 py-3.5 bg-hana-gradient text-white rounded-full text-sm font-bold shadow-lg shadow-pink-500/25 flex items-center gap-2 btn-ripple disabled:bg-gray-200 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
                   >
-                    <Heart className="w-4 h-4 fill-white" />
-                    Book a Moment
+                    <Heart className={`w-4 h-4 ${canBook ? 'fill-white' : ''}`} />
+                    {canBook ? 'Book a Moment' : 'Not eligible to book'}
                   </button>
                 </>
               )}

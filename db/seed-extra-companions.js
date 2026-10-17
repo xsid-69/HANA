@@ -23,13 +23,14 @@ async function main() {
         image: data.photos[0],
         password,
         role: 'COMPANION',
+        age: data.age,
         city: data.city,
         onboarded: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       }).onConflictDoUpdate({
         target: users.email,
-        set: { name: data.name, image: data.photos[0], role: 'COMPANION', city: data.city, onboarded: true, updatedAt: new Date() },
+        set: { name: data.name, image: data.photos[0], role: 'COMPANION', age: data.age, city: data.city, onboarded: true, updatedAt: new Date() },
       }).returning()
       const [companion] = await tx.insert(companions).values({
         userId: user.id,

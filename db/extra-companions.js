@@ -1,6 +1,6 @@
 export const EXTRA_COMPANIONS = [
   {
-    email: 'meera.kapoor@demo.hana.app', name: 'Meera Kapoor', displayName: 'Meera', age: 27,
+    email: 'meera.kapoor@demo.hana.app', name: 'Meera Kapoor', displayName: 'Meera', age: 25,
     city: 'Delhi', district: 'Hauz Khas', hourlyRate: 850, averageRating: 4.9, totalReviews: 42,
     bio: 'Design consultant and Delhi culture enthusiast. I know the galleries, heritage corners, and relaxed cafés that make the city feel personal.',
     languages: ['Hindi', 'English', 'Punjabi'], tags: ['design', 'art', 'heritage', 'cafes'],
@@ -16,7 +16,7 @@ export const EXTRA_COMPANIONS = [
     experiences: [{ name: 'Indiranagar Coffee Trail', emoji: '☕' }, { name: 'Live Music Evening', emoji: '🎵' }, { name: 'Creative Studios Tour', emoji: '✨' }],
   },
   {
-    email: 'ishita.roy@demo.hana.app', name: 'Ishita Roy', displayName: 'Ishita', age: 29,
+    email: 'ishita.roy@demo.hana.app', name: 'Ishita Roy', displayName: 'Ishita', age: 24,
     city: 'Kolkata', district: 'Park Street', hourlyRate: 750, averageRating: 4.9, totalReviews: 34,
     bio: 'Literature editor and food historian. I love introducing people to Kolkata through books, old restaurants, and neighbourhood stories.',
     languages: ['Bengali', 'English', 'Hindi'], tags: ['books', 'food', 'history', 'culture'],
@@ -32,7 +32,7 @@ export const EXTRA_COMPANIONS = [
     experiences: [{ name: 'Charminar Photo Walk', emoji: '📷' }, { name: 'Biryani Trail', emoji: '🍛' }, { name: 'Golconda Sunset', emoji: '🌅' }],
   },
   {
-    email: 'aditi.kulkarni@demo.hana.app', name: 'Aditi Kulkarni', displayName: 'Aditi', age: 28,
+    email: 'aditi.kulkarni@demo.hana.app', name: 'Aditi Kulkarni', displayName: 'Aditi', age: 23,
     city: 'Pune', district: 'Koregaon Park', hourlyRate: 700, averageRating: 4.8, totalReviews: 31,
     bio: 'Architect, cyclist, and brunch expert. I enjoy showing people Pune’s leafy neighbourhoods, independent stores, and relaxed creative side.',
     languages: ['Marathi', 'Hindi', 'English'], tags: ['architecture', 'cycling', 'cafes', 'shopping'],
@@ -40,7 +40,7 @@ export const EXTRA_COMPANIONS = [
     experiences: [{ name: 'Heritage Architecture Walk', emoji: '🏛️' }, { name: 'Koregaon Park Brunch', emoji: '🥐' }, { name: 'Indie Shopping Trail', emoji: '🛍️' }],
   },
   {
-    email: 'leela.joseph@demo.hana.app', name: 'Leela Joseph', displayName: 'Leela', age: 26,
+    email: 'leela.joseph@demo.hana.app', name: 'Leela Joseph', displayName: 'Leela', age: 25,
     city: 'Kochi', district: 'Panampilly Nagar', hourlyRate: 600, averageRating: 4.7, totalReviews: 25,
     bio: 'Illustrator and coastal-food enthusiast. My ideal day combines Fort Kochi art, a quiet ferry ride, and a table full of Kerala flavours.',
     languages: ['Malayalam', 'English', 'Tamil', 'Hindi'], tags: ['illustration', 'coast', 'food', 'culture'],
@@ -56,7 +56,7 @@ export const EXTRA_COMPANIONS = [
     experiences: [{ name: 'Bandra Style Trail', emoji: '👗' }, { name: 'Indie Cinema Evening', emoji: '🎬' }, { name: 'Seaface Sunset', emoji: '🌅' }],
   },
   {
-    email: 'nandini.rao@demo.hana.app', name: 'Nandini Rao', displayName: 'Nandini', age: 31,
+    email: 'nandini.rao@demo.hana.app', name: 'Nandini Rao', displayName: 'Nandini', age: 24,
     city: 'Chennai', district: 'Besant Nagar', hourlyRate: 750, averageRating: 4.8, totalReviews: 36,
     bio: 'Classical-dance teacher and beach-walk regular. I blend Chennai’s traditions with its contemporary cafés and calm coastal evenings.',
     languages: ['Tamil', 'English', 'Telugu', 'Hindi'], tags: ['dance', 'tradition', 'beach', 'coffee'],
@@ -72,7 +72,7 @@ export const EXTRA_COMPANIONS = [
     experiences: [{ name: 'Old City Food Walk', emoji: '🍲' }, { name: 'Heritage Street Evening', emoji: '🏮' }, { name: 'Local Market Visit', emoji: '🛍️' }],
   },
   {
-    email: 'veda.trivedi@demo.hana.app', name: 'Veda Trivedi', displayName: 'Veda', age: 27,
+    email: 'veda.trivedi@demo.hana.app', name: 'Veda Trivedi', displayName: 'Veda', age: 23,
     city: 'Ahmedabad', district: 'Navrangpura', hourlyRate: 650, averageRating: 4.8, totalReviews: 29,
     bio: 'Textile researcher and architecture admirer. I create colourful Ahmedabad days around stepwells, craft studios, and excellent Gujarati food.',
     languages: ['Gujarati', 'Hindi', 'English'], tags: ['textiles', 'architecture', 'crafts', 'food'],

@@ -22,16 +22,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [error, setError] = useState('')
-  const [safeRedirect, setSafeRedirect] = useState(null)
-
-  // Read ?redirect= from the URL (client-only, avoids Suspense requirement).
-  // Only accept internal, same-origin paths.
-  useEffect(() => {
+  const [safeRedirect] = useState(() => {
+    if (typeof window === 'undefined') return null
     const target = new URLSearchParams(window.location.search).get('redirect')
-    if (target && target.startsWith('/') && !target.startsWith('//')) {
-      setSafeRedirect(target)
-    }
-  }, [])
+    return target && target.startsWith('/') && !target.startsWith('//') ? target : null
+  })
 
   const handleGoogleSignIn = () => {
     signIn('google', { callbackUrl: safeRedirect || '/discover' })

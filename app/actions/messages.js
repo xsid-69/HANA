@@ -8,6 +8,8 @@ import { verifyToken } from '@/lib/jwt'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { publish } from '@/lib/message-events'
+import { checkCodeWord, triggerSilentAlert } from '@/app/actions/codeword'
+import { after } from 'next/server'
 
 async function getUser() {
   let userId = null
@@ -176,6 +178,10 @@ export async function sendMessage(input) {
     conversationId: z.string(),
     content: z.string().min(1).max(2000),
     type: z.enum(['TEXT', 'IMAGE']).default('TEXT'),
+    location: z.object({
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+    }).nullable().optional(),
   })
 
   const data = schema.parse(input)
@@ -189,6 +195,45 @@ export async function sendMessage(input) {
     .limit(1)
 
   if (!participant) throw new Error('Forbidden')
+
+  const [interaction] = await db.select({
+    bookingId: bookings.id,
+    bookingStatus: bookings.status,
+    clientId: bookings.clientId,
+    companionId: bookings.companionId,
+    companionUserId: companions.userId,
+    senderRole: users.role,
+  })
+    .from(conversations)
+    .innerJoin(bookings, eq(conversations.bookingId, bookings.id))
+    .innerJoin(companions, eq(bookings.companionId, companions.id))
+    .innerJoin(users, eq(users.id, userId))
+    .where(eq(conversations.id, data.conversationId))
+    .limit(1)
+
+  let codeWordTriggered = false
+
+  if (
+    data.type === 'TEXT' &&
+    interaction?.senderRole === 'COMPANION' &&
+    interaction.companionUserId === userId &&
+    interaction.bookingStatus === 'IN_PROGRESS'
+  ) {
+    try {
+      const result = await checkCodeWord(userId, data.content)
+      codeWordTriggered = result.triggered
+
+      if (codeWordTriggered) {
+        after(() => triggerSilentAlert(
+          userId,
+          interaction.bookingId,
+          data.location || null,
+        ).catch(error => console.error('Silent code-word alert failed', error)))
+      }
+    } catch (error) {
+      console.error('Code-word check failed without blocking message delivery', error)
+    }
+  }
 
   const [message] = await db.insert(messages).values({
     conversationId: data.conversationId,
@@ -229,22 +274,18 @@ export async function sendMessage(input) {
     })
   }
 
-  const [interaction] = await db.select({
-    clientId: bookings.clientId,
-    companionId: bookings.companionId,
-  })
-    .from(conversations)
-    .innerJoin(bookings, eq(conversations.bookingId, bookings.id))
-    .where(eq(conversations.id, data.conversationId))
-    .limit(1)
-
   if (interaction?.clientId === userId) {
     import('@/app/actions/recommendations')
       .then(({ logUserEvent }) => logUserEvent(userId, interaction.companionId, 'message_sent'))
       .catch(console.error)
   }
 
-  return { ...message, sender }
+  return {
+    ...message,
+    sender,
+    success: true,
+    codeWordTriggered,
+  }
 }
 
 export async function markMessagesRead(conversationId) {

@@ -55,6 +55,7 @@ function StatCard({ value, label }) {
 
 function EditProfileModal({ isOpen, onClose, profile, onSaved }) {
   const [name, setName] = useState(profile?.name || '')
+  const [age, setAge] = useState(profile?.age?.toString() || '')
   const [bio, setBio] = useState(profile?.bio || '')
   const [city, setCity] = useState(profile?.city || '')
   const [image, setImage] = useState(profile?.image || '')
@@ -107,7 +108,14 @@ function EditProfileModal({ isOpen, onClose, profile, onSaved }) {
   }
 
   const handleSave = () => {
-    mutation.mutate({ name: name || undefined, bio: bio || undefined, city: city || undefined, image: image || undefined, banner: banner || undefined })
+    mutation.mutate({
+      name: name || undefined,
+      age: age ? Number(age) : undefined,
+      bio: bio || undefined,
+      city: city || undefined,
+      image: image || undefined,
+      banner: banner || undefined,
+    })
   }
 
   return (
@@ -200,6 +208,21 @@ function EditProfileModal({ isOpen, onClose, profile, onSaved }) {
                 />
               </div>
               <div>
+                <label className="text-xs font-semibold text-[var(--hana-ash)] uppercase tracking-wider mb-1.5 block">Age</label>
+                <input
+                  type="number"
+                  value={age}
+                  onChange={e => setAge(e.target.value)}
+                  min={18}
+                  max={100}
+                  inputMode="numeric"
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm text-[var(--hana-charcoal)] outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all"
+                  placeholder="18 or older"
+                />
+                <p className="mt-1 text-xs text-[var(--hana-muted)]">Companions shown to you will be within two years of your age.</p>
+              </div>
+              <div>
                 <label className="text-xs font-semibold text-[var(--hana-ash)] uppercase tracking-wider mb-1.5 block">City</label>
                 <input
                   type="text"
@@ -232,7 +255,7 @@ function EditProfileModal({ isOpen, onClose, profile, onSaved }) {
               </button>
               <button
                 onClick={handleSave}
-                disabled={mutation.isPending}
+                disabled={mutation.isPending || !age || Number(age) < 18 || Number(age) > 100}
                 className="flex-1 py-3 rounded-xl bg-hana-gradient text-white text-sm font-semibold shadow-md shadow-pink-500/20 hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}

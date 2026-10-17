@@ -75,14 +75,14 @@ export default function OnboardingPage() {
     const payload = {
       role: formData.role,
       name: formData.name,
+      age: Number(formData.age),
       city: formData.city,
       tags: formData.tags,
     }
     if (isCompanion) {
       payload.displayName = formData.displayName || formData.name
-      payload.age = parseInt(formData.age) || 25
       payload.bio = formData.bio
-      payload.hourlyRate = parseInt(formData.hourlyRate) || 1000
+      payload.hourlyRate = Number(formData.hourlyRate) || 1000
       payload.languages = formData.languages.length ? formData.languages : ['English', 'Hindi']
     }
     completeOnboarding.mutate(payload)
@@ -217,13 +217,27 @@ export default function OnboardingPage() {
                         className="w-full px-4 py-3 border border-[var(--hana-subtle)] bg-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/30 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] transition-all" />
                     </div>
                   ))}
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--hana-ash)] mb-1.5">Your age</label>
+                    <input type="number" value={formData.age}
+                      onChange={(e) => setFormData(prev => ({ ...prev, age: e.target.value }))}
+                      placeholder={isCompanion ? '18–25' : '18 or older'}
+                      min={18}
+                      max={isCompanion ? 25 : 100}
+                      inputMode="numeric"
+                      className="w-full px-4 py-3 border border-[var(--hana-subtle)] bg-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/30 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] transition-all" />
+                    <p className="mt-1.5 text-xs text-[var(--hana-muted)]">
+                      {isCompanion ? 'Companion profiles are available for ages 18–25.' : 'You must be 18 or older to use Hana.'}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex gap-3 pt-1">
                   <button onClick={() => setStep(1)}
                     className="flex items-center gap-1.5 px-4 py-3 border border-[var(--hana-subtle)] rounded-xl text-sm font-medium text-[var(--hana-ash)] hover:bg-white/80 btn-press">
                     <ArrowLeft className="w-4 h-4" /> Back
                   </button>
-                  <button onClick={() => setStep(3)} disabled={!formData.name || !formData.city}
+                  <button onClick={() => setStep(3)}
+                    disabled={!formData.name || !formData.city || !formData.age || Number(formData.age) < 18 || Number(formData.age) > (isCompanion ? 25 : 100)}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-hana-gradient text-white rounded-xl text-sm font-semibold disabled:opacity-40 shadow-lg shadow-pink-500/20 btn-press">
                     Continue <ArrowRight className="w-4 h-4" />
                   </button>
@@ -296,21 +310,12 @@ export default function OnboardingPage() {
                       placeholder={formData.name || 'e.g. Priya'}
                       className="w-full px-4 py-3 border border-[var(--hana-subtle)] bg-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/30 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] transition-all" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--hana-ash)] mb-1.5">Age</label>
-                      <input type="number" value={formData.age}
-                        onChange={(e) => setFormData(prev => ({ ...prev, age: e.target.value }))}
-                        placeholder="25" min="18" max="99"
-                        className="w-full px-4 py-3 border border-[var(--hana-subtle)] bg-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/30 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] transition-all" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-[var(--hana-ash)] mb-1.5">Hourly Rate (₹)</label>
-                      <input type="number" value={formData.hourlyRate}
-                        onChange={(e) => setFormData(prev => ({ ...prev, hourlyRate: e.target.value }))}
-                        placeholder="1000" min="100"
-                        className="w-full px-4 py-3 border border-[var(--hana-subtle)] bg-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/30 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] transition-all" />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--hana-ash)] mb-1.5">Hourly Rate (₹)</label>
+                    <input type="number" value={formData.hourlyRate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, hourlyRate: e.target.value }))}
+                      placeholder="1000" min="100"
+                      className="w-full px-4 py-3 border border-[var(--hana-subtle)] bg-white/80 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/30 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] transition-all" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[var(--hana-ash)] mb-1.5">Bio</label>
@@ -345,7 +350,7 @@ export default function OnboardingPage() {
                     <ArrowLeft className="w-4 h-4" /> Back
                   </button>
                   <button onClick={handleComplete}
-                    disabled={!formData.age || !formData.bio || formData.bio.length < 10 || completeOnboarding.isPending}
+                    disabled={!formData.bio || formData.bio.length < 10 || completeOnboarding.isPending}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-hana-gradient text-white rounded-xl text-sm font-semibold disabled:opacity-40 shadow-lg shadow-pink-500/20 btn-press">
                     <Sparkles className="w-4 h-4" />
                     {completeOnboarding.isPending ? 'Creating profile...' : 'Launch Profile'}

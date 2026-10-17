@@ -161,11 +161,13 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
   const queryClient = useQueryClient()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef(null)
+  const lastKnownLocationRef = useRef(null)
 
   const other = conversation.participants?.find(p => p.userId !== currentUserId)
   const displayName = other?.user?.name || 'Client'
   const avatar = other?.user?.image
   const isChatDisabled = conversation.bookingStatus === 'COMPLETED'
+  const guardianModeActive = conversation.bookingStatus === 'IN_PROGRESS'
 
   const { data, isLoading } = useQuery({
     queryKey: ['messages', conversation.id],
@@ -187,17 +189,47 @@ function CompanionChatArea({ conversation, currentUserId, onBack }) {
 
   const sendMutation = useMutation({
     mutationFn: sendMessage,
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['messages', conversation.id] })
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
+
+      if (result?.codeWordTriggered && typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200])
+      }
     },
   })
 
-  const handleSend = () => {
+  const captureGuardianLocation = () => new Promise((resolve) => {
+    if (!guardianModeActive || typeof navigator === 'undefined' || !navigator.geolocation) {
+      resolve(lastKnownLocationRef.current)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        lastKnownLocationRef.current = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }
+        resolve(lastKnownLocationRef.current)
+      },
+      () => resolve(lastKnownLocationRef.current),
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 1500 },
+    )
+  })
+
+  const handleSend = async () => {
     const content = input.trim()
     if (!content || sendMutation.isPending) return
+
     setInput('')
-    sendMutation.mutate({ conversationId: conversation.id, content, type: 'TEXT' })
+    const location = await captureGuardianLocation()
+    sendMutation.mutate({
+      conversationId: conversation.id,
+      content,
+      type: 'TEXT',
+      location,
+    })
   }
 
   const handleKeyDown = (e) => {

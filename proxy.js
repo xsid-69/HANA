@@ -14,6 +14,7 @@ const PROTECTED_PREFIXES = [
   '/companion/bookings',
   '/companion/messages',
   '/companion/profile',
+  '/admin',
 ]
 
 // Cookies that indicate a logged-in user. We honor BOTH auth systems:
@@ -53,13 +54,8 @@ export function proxy(request) {
     return NextResponse.redirect(url)
   }
 
-  // Keep logged-in users out of the login/register pages.
-  if (authed && (pathname === '/login' || pathname === '/register')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/home'
-    url.search = ''
-    return NextResponse.redirect(url)
-  }
+  // Login and registration must remain reachable even when stale cookies exist.
+  // Client/server auth validation decides whether a session is actually valid.
 
   return NextResponse.next()
 }

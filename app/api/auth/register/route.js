@@ -4,18 +4,23 @@ import { db } from '@/db'
 import { users } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { signToken, setTokenCookie } from '@/lib/jwt'
+import { MAX_ACCOUNT_AGE, MIN_ADULT_AGE } from '@/lib/age-policy'
 import { z } from 'zod'
 
 const schema = z.object({
   name: z.string().min(2).max(60),
   email: z.string().email(),
   password: z.string().min(8).max(100),
+  age: z.coerce.number()
+    .int()
+    .min(MIN_ADULT_AGE, 'You must be at least 18 to join Hana.')
+    .max(MAX_ACCOUNT_AGE),
 })
 
 export async function POST(req) {
   try {
     const body = await req.json()
-    const { name, email, password } = schema.parse(body)
+    const { name, email, password, age } = schema.parse(body)
 
     const [existing] = await db.select({ id: users.id })
       .from(users)
@@ -34,6 +39,7 @@ export async function POST(req) {
       name,
       email,
       password: hashed,
+      age,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).returning({
@@ -41,6 +47,7 @@ export async function POST(req) {
       email: users.email,
       name: users.name,
       role: users.role,
+      age: users.age,
       onboarded: users.onboarded,
     })
 
@@ -50,7 +57,7 @@ export async function POST(req) {
     return response
   } catch (err) {
     if (err?.name === 'ZodError') {
-      return NextResponse.json({ error: err.errors[0].message }, { status: 400 })
+      return NextResponse.json({ error: err.issues?.[0]?.message || 'Invalid registration details.' }, { status: 400 })
     }
     console.error('[register]', err)
     return NextResponse.json({ error: 'Something went wrong.' }, { status: 500 })

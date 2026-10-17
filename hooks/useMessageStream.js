@@ -7,6 +7,8 @@ export function useMessageStream(onMessage) {
   const eventSourceRef = useRef(null)
   const reconnectTimer = useRef(null)
 
+  const connectRef = useRef(null)
+
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
@@ -31,9 +33,15 @@ export function useMessageStream(onMessage) {
     es.onerror = () => {
       setConnected(false)
       es.close()
-      reconnectTimer.current = setTimeout(connect, 3000)
+      reconnectTimer.current = setTimeout(() => {
+        connectRef.current?.()
+      }, 3000)
     }
   }, [onMessage])
+
+  useEffect(() => {
+    connectRef.current = connect
+  }, [connect])
 
   useEffect(() => {
     connect()

@@ -5,6 +5,7 @@ import { bookings, companions, users, notifications, conversations, conversation
 import { eq, and, or, lte, lt, gt, gte, inArray, count, sql, desc } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { verifyToken } from '@/lib/jwt'
+import { areAgesCompatible, isAdultAge } from '@/lib/age-policy'
 import { cookies } from 'next/headers'
 import { randomInt } from 'crypto'
 import { z } from 'zod'
@@ -39,6 +40,38 @@ async function getUser() {
   return userId
 }
 
+async function assertAgeEligibleBooking(clientId, companionId) {
+  const [[client], [companion]] = await Promise.all([
+    db.select({ role: users.role, age: users.age, onboarded: users.onboarded })
+      .from(users)
+      .where(eq(users.id, clientId))
+      .limit(1),
+    db.select({
+      age: companions.age,
+      hourlyRate: companions.hourlyRate,
+      userId: companions.userId,
+      isActive: companions.isActive,
+      isSuspended: companions.isSuspended,
+    })
+      .from(companions)
+      .where(eq(companions.id, companionId))
+      .limit(1),
+  ])
+
+  if (!client || client.role !== 'CLIENT' || !client.onboarded || !isAdultAge(client.age)) {
+    throw new Error('Complete your adult client profile before booking')
+  }
+  if (!companion) throw new Error('Companion not found')
+  if (!companion.isActive || companion.isSuspended) {
+    throw new Error('Companion is currently unavailable')
+  }
+  if (!areAgesCompatible(client.age, companion.age)) {
+    throw new Error('You can only book companions within two years of your age')
+  }
+
+  return companion
+}
+
 // Step 1: User creates a booking request → PENDING_ACCEPTANCE
 export async function createBooking(input) {
   const userId = await getUser()
@@ -54,19 +87,9 @@ export async function createBooking(input) {
   })
 
   const data = schema.parse(input)
+  const companion = await assertAgeEligibleBooking(userId, data.companionId)
 
-  const [companion] = await db.select({
-    hourlyRate: companions.hourlyRate,
-    userId: companions.userId,
-    isSuspended: companions.isSuspended,
-  })
-    .from(companions)
-    .where(eq(companions.id, data.companionId))
-    .limit(1)
-
-  if (!companion) throw new Error('Companion not found')
   if (companion.userId === userId) throw new Error('Cannot book yourself')
-  if (companion.isSuspended) throw new Error('Companion is currently unavailable')
 
   const date = new Date(data.date)
 
@@ -175,6 +198,7 @@ export async function acceptBooking(bookingId) {
 
   if (companion?.userId !== userId) throw new Error('Forbidden')
   if (booking.status !== 'PENDING_ACCEPTANCE') throw new Error('Booking cannot be accepted in current state')
+  await assertAgeEligibleBooking(booking.clientId, booking.companionId)
 
   // Reject if the acceptance window has already elapsed.
   if (booking.requestExpiresAt && new Date() > booking.requestExpiresAt) {
@@ -271,6 +295,7 @@ export async function confirmPayment(bookingId) {
   if (!booking) throw new Error('Booking not found')
   if (booking.clientId !== userId) throw new Error('Forbidden')
   if (booking.status !== 'AWAITING_PAYMENT') throw new Error('Booking is not awaiting payment')
+  await assertAgeEligibleBooking(booking.clientId, booking.companionId)
 
   // Check if payment window expired
   if (booking.paymentExpiresAt && new Date() > booking.paymentExpiresAt) {

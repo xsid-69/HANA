@@ -199,6 +199,32 @@ function BookingsInner() {
     return <MyBookingsList />
   }
 
+  if (companion.bookingEligibility?.canBook === false) {
+    return (
+      <div className="min-h-screen relative">
+        <TopNav />
+        <div className="max-w-lg mx-auto px-5 py-20 relative z-10">
+          <div className="bg-white rounded-3xl border border-amber-200 p-7 text-center shadow-sm">
+            <div className="w-12 h-12 mx-auto rounded-full bg-amber-50 flex items-center justify-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-amber-600" />
+            </div>
+            <h1 className="font-heading text-xl font-bold text-[var(--hana-charcoal)]">Booking unavailable</h1>
+            <p className="text-sm text-[var(--hana-ash)] mt-2 leading-relaxed">
+              {companion.bookingEligibility.reason}
+            </p>
+            <Link
+              href={`/companion/${companion.id}`}
+              className="mt-6 inline-flex items-center justify-center px-6 py-3 rounded-full bg-[var(--hana-charcoal)] text-white text-sm font-semibold"
+            >
+              Return to profile
+            </Link>
+          </div>
+        </div>
+        <BottomNav />
+      </div>
+    )
+  }
+
   if (activeView === 'myBookings') {
     return <MyBookingsList onSwitchToBook={() => setActiveView('book')} showCapsules companion={companion} />
   }

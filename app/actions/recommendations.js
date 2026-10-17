@@ -15,6 +15,7 @@ import { cookies, headers } from 'next/headers'
 import { timingSafeEqual } from 'crypto'
 import { z } from 'zod'
 
+const RECOMMENDATION_CACHE_VERSION = 'visibility-v1'
 const EVENT_WEIGHTS = Object.freeze({
   profile_viewed: 1,
   companion_saved: 2,
@@ -63,7 +64,7 @@ async function assertMlAccess() {
 }
 
 function cacheKey(userId) {
-  return `recommendations:${userId}`
+  return `recommendations:${RECOMMENDATION_CACHE_VERSION}:${userId}`
 }
 
 export async function logUserEvent(userId, companionId, eventType, sessionDuration) {
@@ -91,8 +92,16 @@ export async function getRecommendations(userId) {
   const key = cacheKey(inputUserId)
 
   try {
-    const cached = await redis.get(key)
-    if (cached) return typeof cached === 'string' ? JSON.parse(cached) : cached
+    const cachedValue = await redis.get(key)
+    if (cachedValue) {
+      const cached = typeof cachedValue === 'string' ? JSON.parse(cachedValue) : cachedValue
+      return {
+        ...cached,
+        companions: (cached.companions ?? []).filter((companion) =>
+          companion.isActive && !companion.isSuspended
+        ),
+      }
+    }
   } catch (error) {
     console.error('Recommendation cache read failed:', error)
   }
@@ -110,13 +119,13 @@ export async function getRecommendations(userId) {
 
   const isColdStart = rows.length < 3
   const recommended = rows.map(({ companion, score }) => ({ ...companion, score }))
-  const featured = isColdStart
+  const resultCompanions = isColdStart
     ? (await getFeaturedCompanions())
-      .filter((companion) => !companion.isSuspended && companion.userId !== inputUserId)
+      .filter((companion) => companion.userId !== inputUserId)
       .slice(0, 10)
       .map((companion) => ({ ...companion, score: null }))
     : recommended
-  const result = { companions: featured, isColdStart }
+  const result = { companions: resultCompanions, isColdStart }
 
   try {
     await redis.set(key, result, { ex: 86400 })

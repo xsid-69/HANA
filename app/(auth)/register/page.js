@@ -10,7 +10,7 @@ import { useAuthStore } from '@/lib/auth-store'
 export default function RegisterPage() {
   const router = useRouter()
   const { fetchMe } = useAuthStore()
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', age: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -25,7 +25,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, age: Number(form.age) }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -139,6 +139,23 @@ export default function RegisterPage() {
                 required
                 className="w-full px-4 py-3 border border-[var(--hana-subtle)] bg-white rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/25 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] transition-all"
               />
+            </div>
+
+            {/* Age */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--hana-ash)] mb-1.5">Age</label>
+              <input
+                type="number"
+                value={form.age}
+                onChange={set('age')}
+                placeholder="18 or older"
+                required
+                min={18}
+                max={100}
+                inputMode="numeric"
+                className="w-full px-4 py-3 border border-[var(--hana-subtle)] bg-white rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400/25 focus:border-pink-400 placeholder:text-[var(--hana-muted)] text-[var(--hana-charcoal)] transition-all"
+              />
+              <p className="mt-1.5 text-xs text-[var(--hana-muted)]">Hana is only available to adults aged 18 and over.</p>
             </div>
 
             {/* Password */}

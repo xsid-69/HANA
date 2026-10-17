@@ -47,8 +47,12 @@ export default function AuthGuard({ children }) {
   }
 
   if (!authenticated) {
-    // Redirect is in flight — render nothing to avoid a flash of protected UI.
-    return null
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[var(--hana-cream)] px-6 text-center">
+        <Loader2 className="w-7 h-7 text-pink-500 animate-spin" aria-hidden="true" />
+        <p className="text-sm font-medium text-[var(--hana-ash)]">Redirecting to sign in…</p>
+      </div>
+    )
   }
 
   return children

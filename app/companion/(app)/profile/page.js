@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { formatINR } from '@/lib/format-currency'
+import GuardianSettingsCard from '@/components/safety/GuardianSettingsCard'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -53,6 +54,7 @@ const MENU_SECTIONS = [
 
 function EditCompanionModal({ isOpen, onClose, profile, companion, onSaved }) {
   const [displayName, setDisplayName] = useState(companion?.displayName || profile?.name || '')
+  const [age, setAge] = useState(companion?.age?.toString() || profile?.age?.toString() || '')
   const [bio, setBio] = useState(companion?.bio || '')
   const [city, setCity] = useState(companion?.city || '')
   const [languages, setLanguages] = useState(companion?.languages || ['English', 'Hindi'])
@@ -114,6 +116,7 @@ function EditCompanionModal({ isOpen, onClose, profile, companion, onSaved }) {
   const handleSave = () => {
     mutation.mutate({
       displayName: displayName || undefined,
+      age: age ? Number(age) : undefined,
       bio: bio || undefined,
       city: city || undefined,
       languages,
@@ -208,6 +211,13 @@ function EditCompanionModal({ isOpen, onClose, profile, companion, onSaved }) {
                   placeholder="Your display name" />
               </div>
               <div>
+                <label className="text-xs font-semibold text-[var(--hana-ash)] uppercase tracking-wider mb-1.5 block">Age</label>
+                <input type="number" value={age} onChange={e => setAge(e.target.value)} min={18} max={25} required inputMode="numeric"
+                  className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm text-[var(--hana-charcoal)] outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all"
+                  placeholder="18–25" />
+                <p className="mt-1 text-xs text-[var(--hana-muted)]">Companion profiles must remain between ages 18 and 25.</p>
+              </div>
+              <div>
                 <label className="text-xs font-semibold text-[var(--hana-ash)] uppercase tracking-wider mb-1.5 block">City</label>
                 <input type="text" value={city} onChange={e => setCity(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm text-[var(--hana-charcoal)] outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all"
@@ -255,7 +265,7 @@ function EditCompanionModal({ isOpen, onClose, profile, companion, onSaved }) {
               <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-medium text-[var(--hana-ash)] hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
-              <button onClick={handleSave} disabled={mutation.isPending}
+              <button onClick={handleSave} disabled={mutation.isPending || !age || Number(age) < 18 || Number(age) > 25}
                 className="flex-1 py-3 rounded-xl bg-hana-gradient text-white text-sm font-semibold shadow-md shadow-pink-500/20 hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
                 {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Save Changes
@@ -401,6 +411,10 @@ export default function CompanionProfilePage() {
               )
             })}
           </div>
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <GuardianSettingsCard companionId={profile?.id} />
         </motion.div>
 
         {/* Menu Sections */}
